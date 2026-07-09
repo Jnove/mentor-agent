@@ -156,6 +156,17 @@ def test_token_roundtrip():
     assert auth.verify_token("", "secret", now=t0) is None
 
 
+def test_mailer_dev_mode():
+    from core import mailer
+    os.environ.pop("SMTP_HOST", None)
+    assert not mailer.smtp_configured()
+    # dev 模式不联网、不抛异常
+    mailer.send_code("a@zju.edu.cn", "123456")
+    os.environ["SMTP_HOST"] = "smtp.example.com"
+    assert mailer.smtp_configured()
+    os.environ.pop("SMTP_HOST", None)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for fn in fns:
