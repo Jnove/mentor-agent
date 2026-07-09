@@ -66,6 +66,7 @@ def _render_register(controller) -> None:
                         try:
                             send_code(email, code)
                         except Exception:
+                            auth.discard_code(email)
                             st.error("邮件发送失败，请稍后再试")
                             return
                         st.session_state.reg_email = email
@@ -82,11 +83,15 @@ def _render_register(controller) -> None:
                 elif not auth.verify_code(st.session_state.reg_email, code):
                     st.error("验证码错误或已失效")
                 else:
-                    uid = auth.create_user(st.session_state.reg_email, password)
-                    st.session_state.pop("reg_step", None)
-                    st.session_state.pop("reg_email", None)
-                    login_as(auth.get_user(uid), controller)
-                    st.rerun()
+                    try:
+                        uid = auth.create_user(st.session_state.reg_email, password)
+                    except ValueError:
+                        st.error("该邮箱刚刚被注册，请直接登录")
+                    else:
+                        st.session_state.pop("reg_step", None)
+                        st.session_state.pop("reg_email", None)
+                        login_as(auth.get_user(uid), controller)
+                        st.rerun()
         if st.button("换个邮箱重新发送"):
             st.session_state.reg_step = 1
             st.rerun()

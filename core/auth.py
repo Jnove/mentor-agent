@@ -90,6 +90,8 @@ def verify_password(password: str, stored: str) -> bool:
 
 def create_user(email: str, password: str, role: str = "user",
                 db_path: str | None = None, now: int | None = None) -> int:
+    if len(password) < 8:
+        raise ValueError("密码至少 8 位")
     now = int(time.time()) if now is None else now
     email = email.strip().lower()
     with _connect(db_path) as db:
@@ -172,6 +174,12 @@ def verify_code(email: str, code: str, db_path: str | None = None,
             return True
         db.execute("UPDATE email_codes SET attempts=attempts+1 WHERE email=?", (email,))
         return False
+
+
+def discard_code(email: str, db_path: str | None = None) -> None:
+    """作废验证码（邮件发送失败时回滚，避免 60s 重发窗口锁死）。"""
+    with _connect(db_path) as db:
+        db.execute("DELETE FROM email_codes WHERE email=?", (email.strip().lower(),))
 
 
 # ---------- 登录 ----------

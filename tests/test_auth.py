@@ -117,6 +117,30 @@ def test_code_expiry_and_attempts():
     os.unlink(db)
 
 
+def test_discard_code():
+    db = _tmp_db()
+    t0 = 1_000_000
+    code = auth.issue_code("a@zju.edu.cn", db_path=db, now=t0)
+    assert code is not None
+    auth.discard_code("a@zju.edu.cn", db_path=db)
+    # 作废后立即重发不受 60s 限制
+    code2 = auth.issue_code("a@zju.edu.cn", db_path=db, now=t0 + 1)
+    assert code2 is not None
+    # 旧码已失效
+    assert not auth.verify_code("a@zju.edu.cn", code, db_path=db, now=t0 + 2)
+    os.unlink(db)
+
+
+def test_create_user_password_policy():
+    db = _tmp_db()
+    try:
+        auth.create_user("a@zju.edu.cn", "short12", db_path=db)
+        assert False, "密码不足 8 位应抛 ValueError"
+    except ValueError:
+        pass
+    os.unlink(db)
+
+
 def test_authenticate_and_lockout():
     db = _tmp_db()
     t0 = 1_000_000

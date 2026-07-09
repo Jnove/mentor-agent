@@ -20,6 +20,7 @@ controller = CookieController()
 
 def current_user() -> dict | None:
     """session_state 优先，其次 cookie；每次都复核用户仍 active（禁用立即生效）。"""
+    # 注意：下面两个 if 必须顺序执行（不能改 elif）——session_state 里的用户失效后仍要走 cookie 分支完成清理
     if "user" in st.session_state:
         u = auth.get_user(st.session_state.user["id"])
         if u and u["status"] == "active":
