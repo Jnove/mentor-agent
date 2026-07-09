@@ -33,3 +33,27 @@ def llm_model() -> str:
 def rerank_model() -> str:
     """重排模型名；设为 off/none/空 则禁用重排。"""
     return os.environ.get("RERANK_MODEL", "BAAI/bge-reranker-base")
+
+
+AUTH_DB = str(ROOT / "data" / "auth.db")
+
+
+def allowed_email_domains() -> list[str]:
+    """注册邮箱后缀白名单（小写、去 @），默认仅 zju.edu.cn。"""
+    raw = os.environ.get("ALLOWED_EMAIL_DOMAINS", "zju.edu.cn")
+    return [d.strip().lstrip("@").lower() for d in raw.split(",") if d.strip()]
+
+
+def auth_secret() -> str:
+    """cookie 签名密钥，缺失直接报错（不默默用弱密钥）。"""
+    s = os.environ.get("AUTH_SECRET", "")
+    if not s:
+        raise RuntimeError(
+            "AUTH_SECRET 未配置：在 .env 里设置随机字符串，"
+            "可用 python -c \"import secrets; print(secrets.token_hex(32))\" 生成"
+        )
+    return s
+
+
+def session_days() -> int:
+    return int(os.environ.get("SESSION_DAYS", "7"))

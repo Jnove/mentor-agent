@@ -1,6 +1,7 @@
 .env
 .venv/
 chroma_db/
+data/
 logs/
 __pycache__/
 mentor/
