@@ -156,15 +156,75 @@ def test_token_roundtrip():
     assert auth.verify_token("", "secret", now=t0) is None
 
 
+_MAILER_ENV_KEYS = ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM")
+
+
+def _save_mailer_env() -> dict:
+    return {k: os.environ.get(k) for k in _MAILER_ENV_KEYS}
+
+
+def _restore_mailer_env(saved: dict) -> None:
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
 def test_mailer_dev_mode():
     from core import mailer
-    os.environ.pop("SMTP_HOST", None)
-    assert not mailer.smtp_configured()
-    # dev 模式不联网、不抛异常
-    mailer.send_code("a@zju.edu.cn", "123456")
-    os.environ["SMTP_HOST"] = "smtp.example.com"
-    assert mailer.smtp_configured()
-    os.environ.pop("SMTP_HOST", None)
+    saved = _save_mailer_env()
+    try:
+        os.environ.pop("SMTP_HOST", None)
+        assert not mailer.smtp_configured()
+        # dev 模式不联网、不抛异常
+        mailer.send_code("a@zju.edu.cn", "123456")
+        os.environ["SMTP_HOST"] = "smtp.example.com"
+        assert mailer.smtp_configured()
+    finally:
+        _restore_mailer_env(saved)
+
+
+def test_mailer_smtp_send():
+    from unittest.mock import MagicMock, patch
+    from core import mailer
+
+    saved = _save_mailer_env()
+    try:
+        os.environ["SMTP_HOST"] = "smtp.example.com"
+        os.environ["SMTP_USER"] = "user@example.com"
+        os.environ["SMTP_PASSWORD"] = "s3cret"
+        os.environ.pop("SMTP_FROM", None)
+
+        with patch("smtplib.SMTP_SSL") as mock_smtp_ssl:
+            mock_conn = MagicMock()
+            mock_smtp_ssl.return_value.__enter__.return_value = mock_conn
+
+            mailer.send_code("a@zju.edu.cn", "123456")
+
+            # (a) SMTP_SSL 以 host、465 端口、timeout=15 被调用
+            mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465, timeout=15)
+            # (b) 调用了 login(user, password)
+            mock_conn.login.assert_called_once_with("user@example.com", "s3cret")
+            # (c) sendmail 的 sender 参数回退为 SMTP_USER
+            args, _ = mock_conn.sendmail.call_args
+            sender, recipients, _body = args
+            assert sender == "user@example.com"
+            assert recipients == ["a@zju.edu.cn"]
+
+        # (d) sendmail 抛异常时，send_code 把异常向上传播
+        with patch("smtplib.SMTP_SSL") as mock_smtp_ssl:
+            mock_conn = MagicMock()
+            mock_conn.sendmail.side_effect = RuntimeError("boom")
+            mock_smtp_ssl.return_value.__enter__.return_value = mock_conn
+
+            try:
+                mailer.send_code("a@zju.edu.cn", "123456")
+                assert False, "sendmail 异常应向上传播"
+            except RuntimeError as e:
+                assert str(e) == "boom"
+    finally:
+        _restore_mailer_env(saved)
 
 
 if __name__ == "__main__":
