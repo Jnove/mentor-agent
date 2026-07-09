@@ -23,7 +23,7 @@ logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ER
 from core.config import COLLECTION, DB_DIR
 from core.embeddings import get_embedder
 from core.llm import (
-    build_context, extract_citations, get_llm, rewrite_query, stream_answer,
+    build_context, get_llm, renumber_citations, rewrite_query, stream_answer,
     summarize_turn,
 )
 from core.notes import dedup_sources, notes_to_markdown, snippet
@@ -216,11 +216,25 @@ with right:
         for msg in st.session_state.messages:
             avatar = "🎓" if msg["role"] == "assistant" else None
             with st.chat_message(msg["role"], avatar=avatar):
+                # 检索详情和来源行都存在消息里，重跑（导出/追问）后一起重绘
+                r = msg.get("retrieval")
+                if r:
+                    with st.expander(f"检索到 {r['n']} 条相关片段"):
+                        if r["rewritten"]:
+                            st.caption(f"追问已改写为：{r['rewritten']}")
+                        for line in r["items"]:
+                            st.markdown(line)
                 st.markdown(msg["content"])
+                if msg.get("sources_md"):
+                    st.caption("来源：" + msg["sources_md"])
     question = st.chat_input("例如：转专业需要什么条件？")
 
 if question:
-    history = list(st.session_state.messages)  # 不含当前问题
+    # 不含当前问题；只保留 role/content，附加字段（sources_md）不能发给 LLM 接口
+    history = [
+        {"role": m["role"], "content": m["content"]}
+        for m in st.session_state.messages
+    ]
     st.session_state.messages.append({"role": "user", "content": question})
     with chat_box:
         with st.chat_message("user"):
@@ -230,14 +244,21 @@ if question:
             with st.spinner("检索知识库中..."):
                 search_q = rewrite_query(llm, history, question)
                 hits = retriever.search(search_q)
-            with st.expander(f"检索到 {len(hits)} 条相关片段"):
-                if search_q != question:
-                    st.caption(f"追问已改写为：{search_q}")
-                for h in hits:
-                    st.markdown(f"- 《{h['title']}》— {snippet(h['text'])}")
+            # 检索详情随消息保存，重跑后历史循环里能原样重绘
+            retrieval = {
+                "n": len(hits),
+                "rewritten": search_q if search_q != question else "",
+                "items": [f"- 《{h['title']}》— {snippet(h['text'])}" for h in hits],
+            }
+            with st.expander(f"检索到 {retrieval['n']} 条相关片段"):
+                if retrieval["rewritten"]:
+                    st.caption(f"追问已改写为：{retrieval['rewritten']}")
+                for line in retrieval["items"]:
+                    st.markdown(line)
 
             prompt, cite_srcs = build_context(question, hits, retriever.catalog)
-            streamed = st.write_stream(
+            answer_slot = st.empty()  # 占位：流式结束后用重编号正文原地替换
+            streamed = answer_slot.write_stream(
                 (chunk.choices[0].delta.content or "")
                 for chunk in stream_answer(llm, history, prompt)
                 if chunk.choices
@@ -245,8 +266,10 @@ if question:
             # write_stream 返回 str | list；全是字符串块时归一成 str
             answer = streamed if isinstance(streamed, str) else "".join(map(str, streamed))
 
-            # 来源清单跟着正文的 [n] 引用走；LLM 没标注时退回"检索命中去重"
-            cited = extract_citations(answer, cite_srcs)
+            # 引用重映射为按出现顺序的 [1][2][3]…；来源清单跟着正文引用走，
+            # LLM 没标注时退回"检索命中去重"
+            answer, cited = renumber_citations(answer, cite_srcs)
+            answer_slot.markdown(answer)
             if cited:
                 sources = [s for _, s in cited]
                 caption = " · ".join(
@@ -259,7 +282,10 @@ if question:
                 )
             st.caption("来源：" + caption)
 
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.session_state.messages.append(
+        {"role": "assistant", "content": answer,
+         "sources_md": caption, "retrieval": retrieval}
+    )
     with st.spinner("整理笔记中..."):
         points = summarize_turn(llm, question, answer)
     st.session_state.notes.append(

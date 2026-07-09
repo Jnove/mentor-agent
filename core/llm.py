@@ -65,15 +65,26 @@ def build_context(question: str, hits: list[dict],
 _CITE = re.compile(r"\[(\d{1,2})\]")
 
 
-def extract_citations(answer: str, sources: list[dict]) -> list[tuple[int, dict]]:
-    """按正文首次引用顺序返回 (编号, 来源)；没有合法引用标记时返回空列表（调用方兜底）。"""
-    out, seen = [], set()
-    for m in _CITE.finditer(answer):
+def renumber_citations(answer: str, sources: list[dict]) -> tuple[str, list[tuple[int, dict]]]:
+    """把正文引用按首次出现顺序重映射为 [1][2][3]…（prompt 里的原始编号跨越
+    资料+目录，正文里可能跳号）。
+
+    返回 (重编号后的正文, [(新编号, 来源)])；没有合法引用标记时返回 (原文, [])，
+    越界编号（政策文号等普通数字）原样保留。
+    """
+    mapping: dict[int, int] = {}
+    cited: list[tuple[int, dict]] = []
+
+    def sub(m: re.Match) -> str:
         n = int(m.group(1))
-        if 1 <= n <= len(sources) and n not in seen:
-            seen.add(n)
-            out.append((n, sources[n - 1]))
-    return out
+        if not (1 <= n <= len(sources)):
+            return m.group(0)
+        if n not in mapping:
+            mapping[n] = len(mapping) + 1
+            cited.append((mapping[n], sources[n - 1]))
+        return f"[{mapping[n]}]"
+
+    return _CITE.sub(sub, answer), cited
 
 
 def stream_answer(llm, history: list[dict], prompt: str):

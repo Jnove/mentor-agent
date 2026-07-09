@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.chunking import split_by_headings
-from core.llm import build_context, extract_citations
+from core.llm import build_context, renumber_citations
 from core.notes import dedup_sources, notes_to_markdown, snippet
 from core.retrieval import pick_with_coverage, rrf_fuse, tokenize
 
@@ -82,13 +82,18 @@ def test_build_context():
     assert "【知识库目录】" not in prompt2
 
 
-def test_extract_citations():
+def test_renumber_citations():
     sources = [{"title": "A"}, {"title": "B"}, {"title": "C"}]
-    cited = extract_citations("先说A[1]，再说C[3]，又提A[1]。", sources)
-    assert [(n, s["title"]) for n, s in cited] == [(1, "A"), (3, "C")]
-    # 越界编号和年份类数字不算引用
-    assert extract_citations("规定见[9]和2025年文件", sources) == []
-    assert extract_citations("完全没有标注", sources) == []
+    # 跳号引用按首次出现顺序重映射为 1、2；重复引用共用同一新编号
+    text, cited = renumber_citations("先说C[3]，再说A[1]，又提C[3]。", sources)
+    assert text == "先说C[1]，再说A[2]，又提C[1]。", text
+    assert [(n, s["title"]) for n, s in cited] == [(1, "C"), (2, "A")]
+    # 越界编号（政策文号等）原样保留、不算引用
+    text, cited = renumber_citations("规定见[9]和2025年文件", sources)
+    assert text == "规定见[9]和2025年文件" and cited == []
+    # 完全没有标注 -> 原文不变、空列表（调用方兜底）
+    text, cited = renumber_citations("没有标注", sources)
+    assert text == "没有标注" and cited == []
 
 
 def test_snippet():
