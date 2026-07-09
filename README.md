@@ -17,6 +17,8 @@ mentor-agent/
 │   └── notes.py          #   来源去重 / FAQ 导出
 ├── tests/test_core.py    # 纯函数测试：python tests/test_core.py
 ├── .env.example          # 配置模板，复制为 .env 后填写
+├── DEPLOY.md             # 服务器部署指南（Docker / 源码 + systemd）
+├── Dockerfile            # 配套 compose.yaml 使用，见 DEPLOY.md
 └── requirements.txt
 ```
 
@@ -48,6 +50,8 @@ streamlit run app.py
 bge-reranker-base（约 1.1GB，可在 .env 里设 `RERANK_MODEL=off` 跳过）。
 国内网络走 hf-mirror 镜像；本机开着代理（Clash 等）导致下载失败时，
 代码会自动绕开代理直连镜像。
+
+> 部署到 Linux 服务器（Docker 或源码 + systemd）见 [DEPLOY.md](DEPLOY.md)。
 
 ## 检索管线
 

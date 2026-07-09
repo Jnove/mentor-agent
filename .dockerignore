@@ -1,0 +1,16 @@
+.git
+.claude
+.venv
+__pycache__
+**/__pycache__
+chroma_db
+knowledge_base
+docs
+mentor
+logs
+tests
+.env
+.env.example
+Dockerfile
+compose.yaml
+.dockerignore
