@@ -46,16 +46,25 @@ def make_chunks(path, post, content_hash):
     """
     rel = path.relative_to(KB_DIR).as_posix()
     ids, texts, metas = [], [], []
+    tags = post.get("tags", [])
+    if isinstance(tags, (list, tuple, set)):
+        tag_text = "、".join(str(t) for t in tags if str(t).strip())
+    else:
+        tag_text = str(tags).strip()
+    search_prefix = f"标题：{post['title']}\n分类：{post['category']}"
+    if tag_text:
+        search_prefix += f"\n检索标签：{tag_text}"
     for i, chunk in enumerate(split_by_headings(post.content)):
         ids.append(f"{rel}::{i}")
         # 把标题拼进块里，检索时更容易命中
-        texts.append(f"《{post['title']}》\n{chunk}")
+        texts.append(f"{search_prefix}\n\n{chunk}")
         metas.append({
             "title": str(post["title"]),
             "source_url": str(post["source_url"]),
             "source_org": str(post["source_org"]),
             "publish_date": str(post["publish_date"]),
             "category": str(post["category"]),
+            "tags": tag_text,
             "file": rel,
             "content_hash": content_hash,
         })
