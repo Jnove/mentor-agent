@@ -39,10 +39,15 @@ def load_docs():
 
 
 def make_chunks(path, post, content_hash):
-    """一篇文档 -> (ids, texts, metas)"""
+    """一篇文档 -> (ids, texts, metas)。
+
+    id 和 file 元数据都用相对 knowledge_base/ 的路径，
+    否则不同子文件夹下的同名文件会生成相同 id 互相覆盖。
+    """
+    rel = path.relative_to(KB_DIR).as_posix()
     ids, texts, metas = [], [], []
     for i, chunk in enumerate(split_by_headings(post.content)):
-        ids.append(f"{path.stem}::{i}")
+        ids.append(f"{rel}::{i}")
         # 把标题拼进块里，检索时更容易命中
         texts.append(f"《{post['title']}》\n{chunk}")
         metas.append({
@@ -51,7 +56,7 @@ def make_chunks(path, post, content_hash):
             "source_org": str(post["source_org"]),
             "publish_date": str(post["publish_date"]),
             "category": str(post["category"]),
-            "file": str(path.name),
+            "file": rel,
             "content_hash": content_hash,
         })
     return ids, texts, metas
@@ -78,15 +83,16 @@ def main(rebuild: bool = False):
     seen = set()
     add_ids, add_texts, add_metas = [], [], []
     for path, post, content_hash in docs:
-        seen.add(path.name)
-        prev = by_file.get(path.name)
+        rel = path.relative_to(KB_DIR).as_posix()
+        seen.add(rel)
+        prev = by_file.get(rel)
         if prev and prev["hash"] == content_hash:
             continue  # 未变更
         if prev:
             col.delete(ids=prev["ids"])
-            print(f"[更新] {path.name}")
+            print(f"[更新] {rel}")
         else:
-            print(f"[新增] {path.name}")
+            print(f"[新增] {rel}")
         ids, texts, metas = make_chunks(path, post, content_hash)
         add_ids += ids
         add_texts += texts

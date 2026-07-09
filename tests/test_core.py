@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.chunking import split_by_headings
 from core.notes import dedup_sources, notes_to_markdown, snippet
-from core.retrieval import rrf_fuse, tokenize
+from core.retrieval import pick_with_coverage, rrf_fuse, tokenize
 
 
 def test_rrf_fuse():
@@ -39,6 +39,27 @@ def test_split_by_headings():
     # 超长块按段落再切
     long_doc = "## 长\n" + "\n\n".join("段" * 300 for _ in range(4))
     assert len(split_by_headings(long_doc)) > 1
+
+
+def test_pick_with_coverage():
+    def h(f):
+        return {"file": f}
+
+    # 枚举场景：top2 之外仍有高分的未覆盖文档 -> 各补最优一块
+    ranked = [(0.99, h("a")), (0.98, h("a")), (0.97, h("b")),
+              (0.96, h("c")), (0.95, h("c"))]
+    picked = pick_with_coverage(ranked, top_k=2, min_score=0.5, max_extra=5)
+    assert [p["file"] for p in picked] == ["a", "a", "b", "c"], picked
+
+    # 细节场景：其他文档得分低于阈值 -> 不补位，行为同 top_k 截断
+    ranked = [(0.99, h("a")), (0.98, h("a")), (0.001, h("b"))]
+    picked = pick_with_coverage(ranked, top_k=2, min_score=0.5, max_extra=5)
+    assert [p["file"] for p in picked] == ["a", "a"], picked
+
+    # 补位数量受 max_extra 限制
+    ranked = [(0.9, h(str(i))) for i in range(10)]
+    picked = pick_with_coverage(ranked, top_k=2, min_score=0.5, max_extra=3)
+    assert len(picked) == 5, picked
 
 
 def test_snippet():

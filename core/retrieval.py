@@ -9,7 +9,9 @@ import re
 import sys
 from collections import defaultdict
 
-from core.config import CANDIDATES, TOP_K, rerank_model
+from core.config import (
+    CANDIDATES, COVER_MAX_EXTRA, COVER_MIN_SCORE, TOP_K, rerank_model,
+)
 
 _TOKEN_CLEAN = re.compile(r"[^\w一-鿿]+")
 
@@ -28,6 +30,27 @@ def rrf_fuse(rankings: list[list[str]], k: int = 60) -> list[str]:
         for rank, id_ in enumerate(ranking):
             scores[id_] += 1.0 / (k + rank + 1)
     return sorted(scores, key=lambda i: scores[i], reverse=True)
+
+
+def pick_with_coverage(ranked: list[tuple[float, dict]], top_k: int,
+                       min_score: float = COVER_MIN_SCORE,
+                       max_extra: int = COVER_MAX_EXTRA) -> list[dict]:
+    """重排后的最终选择：先按分取 top_k，再给"得分够高但文档未覆盖"的候选补位。
+
+    枚举类问题（"求是科学班有哪几种"）里所有相关文档得分都接近 1，
+    top_k 往往被少数几篇的多个块占满，导致 LLM 数不全——
+    这里给每个还没进结果的高分文档补上它的最优一块。
+    细节类问题里无关文档得分接近 0，达不到 min_score，行为不变。
+    """
+    picked = [h for _, h in ranked[:top_k]]
+    covered = {h.get("file") for h in picked}
+    for score, h in ranked[top_k:]:
+        if len(picked) >= top_k + max_extra:
+            break
+        if score >= min_score and h.get("file") not in covered:
+            picked.append(h)
+            covered.add(h.get("file"))
+    return picked
 
 
 def load_reranker():
@@ -70,6 +93,26 @@ class Retriever:
 
             self.bm25 = BM25Okapi([tokenize(self.docs[i]) for i in self.ids])
 
+        self.catalog = self._build_catalog()
+
+    def _build_catalog(self) -> str:
+        """知识库全部文档的标题清单（按文件夹分组），注入 prompt 供枚举类问题数全。"""
+        seen: dict[str, dict] = {}
+        for m in self.metas.values():
+            m = m or {}
+            f = str(m.get("file", ""))
+            if f and f not in seen:
+                seen[f] = m
+        groups: dict[str, list[dict]] = {}
+        for f in sorted(seen):
+            folder = f.rsplit("/", 1)[0] if "/" in f else "根目录"
+            groups.setdefault(folder, []).append(seen[f])
+        lines = []
+        for folder, metas in groups.items():
+            lines.append(f"{folder}/")
+            lines.extend(f"  - 《{m.get('title')}》({m.get('publish_date')})" for m in metas)
+        return "\n".join(lines)
+
     def _vector_channel(self, query: str, n: int) -> list[str]:
         res = self.col.query(query_embeddings=self.embed([query]), n_results=n)
         return res["ids"][0]
@@ -93,7 +136,6 @@ class Retriever:
 
         if self.reranker is not None and len(hits) > 1:
             scores = self.reranker.predict([(query, h["text"]) for h in hits])
-            hits = [h for _, h in sorted(
-                zip(scores, hits), key=lambda x: x[0], reverse=True
-            )]
+            ranked = sorted(zip(scores, hits), key=lambda x: x[0], reverse=True)
+            return pick_with_coverage([(float(s), h) for s, h in ranked], top_k)
         return hits[:top_k]

@@ -9,10 +9,16 @@
     streamlit run app.py
 """
 import html
+import logging
 from datetime import date
 
 import chromadb
 import streamlit as st
+
+# Streamlit 的文件监视器会遍历 sys.modules 探测 __path__，探到 transformers 5.x 时触发它懒加载
+# 视觉模型，而那些模块 import torchvision（本项目未装）→ ModuleNotFoundError。该异常被 Streamlit
+# 内部 catch，不影响运行，只是把 traceback 刷进控制台。屏蔽这一条 warning 即可。
+logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ERROR)
 
 from core.config import COLLECTION, DB_DIR
 from core.embeddings import get_embedder
@@ -222,7 +228,7 @@ if question:
 
             streamed = st.write_stream(
                 (chunk.choices[0].delta.content or "")
-                for chunk in stream_answer(llm, history, question, hits)
+                for chunk in stream_answer(llm, history, question, hits, retriever.catalog)
                 if chunk.choices
             )
             # write_stream 返回 str | list；全是字符串块时归一成 str
