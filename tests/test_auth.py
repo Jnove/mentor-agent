@@ -117,6 +117,31 @@ def test_code_expiry_and_attempts():
     os.unlink(db)
 
 
+def test_authenticate_and_lockout():
+    db = _tmp_db()
+    t0 = 1_000_000
+    auth.create_user("a@zju.edu.cn", "hunter2hunter2", db_path=db)
+
+    status, user = auth.authenticate("a@zju.edu.cn", "hunter2hunter2", db_path=db, now=t0)
+    assert status == "ok" and user["email"] == "a@zju.edu.cn"
+    assert auth.get_user(user["id"], db_path=db)["last_login_at"] == t0
+
+    # 不存在的邮箱与密码错误返回同一状态（防探测）
+    assert auth.authenticate("no@zju.edu.cn", "x" * 8, db_path=db, now=t0)[0] == "bad_credentials"
+    assert auth.authenticate("a@zju.edu.cn", "x" * 8, db_path=db, now=t0)[0] == "bad_credentials"
+
+    # 连错 5 次锁定；锁定期内正确密码也拒绝；过期自动解锁
+    for _ in range(4):  # 前面已错 1 次
+        auth.authenticate("a@zju.edu.cn", "x" * 8, db_path=db, now=t0)
+    assert auth.authenticate("a@zju.edu.cn", "hunter2hunter2", db_path=db, now=t0 + 1)[0] == "locked"
+    assert auth.authenticate("a@zju.edu.cn", "hunter2hunter2", db_path=db, now=t0 + 901)[0] == "ok"
+
+    # 禁用账号：密码对也拒绝
+    auth.set_status(user["id"], "disabled", db_path=db)
+    assert auth.authenticate("a@zju.edu.cn", "hunter2hunter2", db_path=db, now=t0 + 902)[0] == "disabled"
+    os.unlink(db)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for fn in fns:

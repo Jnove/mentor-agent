@@ -172,3 +172,36 @@ def verify_code(email: str, code: str, db_path: str | None = None,
             return True
         db.execute("UPDATE email_codes SET attempts=attempts+1 WHERE email=?", (email,))
         return False
+
+
+# ---------- 登录 ----------
+
+def authenticate(email: str, password: str, db_path: str | None = None,
+                 now: int | None = None) -> tuple[str, dict | None]:
+    """返回 (状态, 用户)。状态: ok / bad_credentials / locked / disabled。
+
+    先验密码再看 disabled，避免用响应差异探测邮箱是否已注册。
+    """
+    now = int(time.time()) if now is None else now
+    user = get_user_by_email(email, db_path=db_path)
+    if not user:
+        return "bad_credentials", None
+    if user["locked_until"] > now:
+        return "locked", None
+    if not verify_password(password, user["password_hash"]):
+        failed = user["failed_logins"] + 1
+        locked_until = now + LOCK_SECONDS if failed >= LOCK_AFTER else 0
+        with _connect(db_path) as db:
+            db.execute(
+                "UPDATE users SET failed_logins=?, locked_until=? WHERE id=?",
+                (0 if locked_until else failed, locked_until, user["id"]),
+            )
+        return "bad_credentials", None
+    if user["status"] != "active":
+        return "disabled", None
+    with _connect(db_path) as db:
+        db.execute(
+            "UPDATE users SET failed_logins=0, locked_until=0, last_login_at=? WHERE id=?",
+            (now, user["id"]),
+        )
+    return "ok", get_user(user["id"], db_path=db_path)
