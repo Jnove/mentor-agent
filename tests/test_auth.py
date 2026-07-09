@@ -85,6 +85,38 @@ def test_user_crud():
     os.unlink(db)
 
 
+def test_issue_and_verify_code():
+    db = _tmp_db()
+    t0 = 1_000_000
+    code = auth.issue_code("a@zju.edu.cn", db_path=db, now=t0)
+    assert code and len(code) == 6 and code.isdigit()
+    # 60s 内重发被拒
+    assert auth.issue_code("a@zju.edu.cn", db_path=db, now=t0 + 30) is None
+    # 60s 后可重发（新码覆盖旧码）
+    code2 = auth.issue_code("a@zju.edu.cn", db_path=db, now=t0 + 61)
+    assert code2 is not None
+    # 旧码失效、新码可用；用过即删，第二次验证失败
+    assert not auth.verify_code("a@zju.edu.cn", code, db_path=db, now=t0 + 62) or code == code2
+    assert auth.verify_code("a@zju.edu.cn", code2, db_path=db, now=t0 + 62)
+    assert not auth.verify_code("a@zju.edu.cn", code2, db_path=db, now=t0 + 63)
+    os.unlink(db)
+
+
+def test_code_expiry_and_attempts():
+    db = _tmp_db()
+    t0 = 1_000_000
+    code = auth.issue_code("a@zju.edu.cn", db_path=db, now=t0)
+    # 过期
+    assert not auth.verify_code("a@zju.edu.cn", code, db_path=db, now=t0 + 601)
+    # 重新签发后连错 5 次作废，第 6 次即使码对也拒绝
+    code = auth.issue_code("a@zju.edu.cn", db_path=db, now=t0 + 700)
+    for _ in range(5):
+        assert not auth.verify_code("a@zju.edu.cn", "000000" if code != "000000" else "111111",
+                                    db_path=db, now=t0 + 701)
+    assert not auth.verify_code("a@zju.edu.cn", code, db_path=db, now=t0 + 702)
+    os.unlink(db)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for fn in fns:

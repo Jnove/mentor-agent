@@ -131,3 +131,44 @@ def set_status(user_id: int, status: str, db_path: str | None = None) -> None:
 def set_role(user_id: int, role: str, db_path: str | None = None) -> None:
     with _connect(db_path) as db:
         db.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
+
+
+# ---------- 邮箱验证码 ----------
+
+def _sha256(s: str) -> str:
+    return hashlib.sha256(s.encode()).hexdigest()
+
+
+def issue_code(email: str, db_path: str | None = None, now: int | None = None) -> str | None:
+    """签发 6 位验证码；同邮箱 60s 内重复请求返回 None。"""
+    now = int(time.time()) if now is None else now
+    email = email.strip().lower()
+    code = f"{secrets.randbelow(10**6):06d}"
+    with _connect(db_path) as db:
+        row = db.execute(
+            "SELECT last_sent_at FROM email_codes WHERE email=?", (email,)
+        ).fetchone()
+        if row and now - row["last_sent_at"] < RESEND_INTERVAL:
+            return None
+        db.execute(
+            "REPLACE INTO email_codes (email, code_hash, expires_at, attempts, last_sent_at) "
+            "VALUES (?,?,?,0,?)",
+            (email, _sha256(code), now + CODE_TTL, now),
+        )
+    return code
+
+
+def verify_code(email: str, code: str, db_path: str | None = None,
+                now: int | None = None) -> bool:
+    """校验验证码：成功即删（一次性）；失败计次，达上限作废。"""
+    now = int(time.time()) if now is None else now
+    email = email.strip().lower()
+    with _connect(db_path) as db:
+        row = db.execute("SELECT * FROM email_codes WHERE email=?", (email,)).fetchone()
+        if not row or now > row["expires_at"] or row["attempts"] >= MAX_CODE_ATTEMPTS:
+            return False
+        if hmac.compare_digest(row["code_hash"], _sha256(code.strip())):
+            db.execute("DELETE FROM email_codes WHERE email=?", (email,))
+            return True
+        db.execute("UPDATE email_codes SET attempts=attempts+1 WHERE email=?", (email,))
+        return False
