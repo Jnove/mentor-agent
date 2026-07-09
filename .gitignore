@@ -4,4 +4,4 @@ __pycache__/
 mentor/
 .claude/
 docs/
-playrightconfig.json
+pyrightconfig.json
