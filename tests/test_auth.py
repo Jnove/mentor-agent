@@ -9,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core import auth
 from core.config import allowed_email_domains, auth_secret, session_days
 
 
@@ -37,6 +38,51 @@ def test_session_days():
     os.environ["SESSION_DAYS"] = "3"
     assert session_days() == 3
     os.environ.pop("SESSION_DAYS", None)
+
+
+def _tmp_db() -> str:
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    os.unlink(path)  # 只要路径；auth 模块自己建库
+    auth.init_db(path)
+    return path
+
+
+def test_email_allowed():
+    domains = ["zju.edu.cn"]
+    assert auth.email_allowed("a@zju.edu.cn", domains)
+    assert auth.email_allowed("  A@ZJU.EDU.CN ", domains)
+    assert not auth.email_allowed("a@qq.com", domains)
+    assert not auth.email_allowed("azju.edu.cn", domains)
+    assert not auth.email_allowed("a@fakezju.edu.cn", domains)
+
+
+def test_password_roundtrip():
+    stored = auth.hash_password("hunter2hunter2")
+    assert auth.verify_password("hunter2hunter2", stored)
+    assert not auth.verify_password("wrong-password", stored)
+    # 同一密码两次哈希盐不同
+    assert stored != auth.hash_password("hunter2hunter2")
+
+
+def test_user_crud():
+    db = _tmp_db()
+    uid = auth.create_user("a@zju.edu.cn", "hunter2hunter2", db_path=db)
+    u = auth.get_user(uid, db_path=db)
+    assert u["email"] == "a@zju.edu.cn" and u["role"] == "user" and u["status"] == "active"
+    assert auth.get_user_by_email("a@zju.edu.cn", db_path=db)["id"] == uid
+    assert auth.get_user_by_email("no@zju.edu.cn", db_path=db) is None
+    try:
+        auth.create_user("a@zju.edu.cn", "x" * 8, db_path=db)
+        assert False, "重复邮箱应抛 ValueError"
+    except ValueError:
+        pass
+    auth.set_role(uid, "admin", db_path=db)
+    auth.set_status(uid, "disabled", db_path=db)
+    u = auth.get_user(uid, db_path=db)
+    assert u["role"] == "admin" and u["status"] == "disabled"
+    assert len(auth.list_users(db_path=db)) == 1
+    os.unlink(db)
 
 
 if __name__ == "__main__":
