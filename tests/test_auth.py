@@ -142,6 +142,20 @@ def test_authenticate_and_lockout():
     os.unlink(db)
 
 
+def test_token_roundtrip():
+    t0 = 1_000_000
+    token = auth.sign_token(42, t0 + 100, "secret")
+    assert auth.verify_token(token, "secret", now=t0) == 42
+    # 过期
+    assert auth.verify_token(token, "secret", now=t0 + 101) is None
+    # 篡改（换 uid / 换密钥 / 乱串）
+    forged = "43" + token[2:]
+    assert auth.verify_token(forged, "secret", now=t0) is None
+    assert auth.verify_token(token, "other-secret", now=t0) is None
+    assert auth.verify_token("garbage", "secret", now=t0) is None
+    assert auth.verify_token("", "secret", now=t0) is None
+
+
 if __name__ == "__main__":
     fns = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for fn in fns:

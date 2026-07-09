@@ -205,3 +205,25 @@ def authenticate(email: str, password: str, db_path: str | None = None,
             (now, user["id"]),
         )
     return "ok", get_user(user["id"], db_path=db_path)
+
+
+# ---------- 会话 token（HMAC 签名，无服务端状态） ----------
+
+def sign_token(user_id: int, expires_at: int, secret: str) -> str:
+    payload = f"{user_id}.{expires_at}"
+    sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{sig}"
+
+
+def verify_token(token: str, secret: str, now: int | None = None) -> int | None:
+    """验签 + 验过期，通过返回 user_id，否则 None。"""
+    now = int(time.time()) if now is None else now
+    try:
+        uid_s, exp_s, sig = token.split(".")
+        payload = f"{uid_s}.{exp_s}"
+        expect = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expect) or int(exp_s) < now:
+            return None
+        return int(uid_s)
+    except (ValueError, AttributeError):
+        return None
