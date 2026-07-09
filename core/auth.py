@@ -90,7 +90,7 @@ def verify_password(password: str, stored: str) -> bool:
 
 def create_user(email: str, password: str, role: str = "user",
                 db_path: str | None = None, now: int | None = None) -> int:
-    now = now or int(time.time())
+    now = int(time.time()) if now is None else now
     email = email.strip().lower()
     with _connect(db_path) as db:
         try:
