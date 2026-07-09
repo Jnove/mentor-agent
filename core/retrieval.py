@@ -95,23 +95,16 @@ class Retriever:
 
         self.catalog = self._build_catalog()
 
-    def _build_catalog(self) -> str:
-        """知识库全部文档的标题清单（按文件夹分组），注入 prompt 供枚举类问题数全。"""
+    def _build_catalog(self) -> list[dict]:
+        """知识库全部文档的元数据清单（按文件路径排序，同文件夹相邻），
+        注入 prompt 供枚举类问题数全，并参与统一的来源编号。"""
         seen: dict[str, dict] = {}
         for m in self.metas.values():
             m = m or {}
             f = str(m.get("file", ""))
             if f and f not in seen:
                 seen[f] = m
-        groups: dict[str, list[dict]] = {}
-        for f in sorted(seen):
-            folder = f.rsplit("/", 1)[0] if "/" in f else "根目录"
-            groups.setdefault(folder, []).append(seen[f])
-        lines = []
-        for folder, metas in groups.items():
-            lines.append(f"{folder}/")
-            lines.extend(f"  - 《{m.get('title')}》({m.get('publish_date')})" for m in metas)
-        return "\n".join(lines)
+        return [seen[f] for f in sorted(seen)]
 
     def _vector_channel(self, query: str, n: int) -> list[str]:
         res = self.col.query(query_embeddings=self.embed([query]), n_results=n)

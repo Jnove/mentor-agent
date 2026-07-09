@@ -22,7 +22,10 @@ logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ER
 
 from core.config import COLLECTION, DB_DIR
 from core.embeddings import get_embedder
-from core.llm import get_llm, rewrite_query, stream_answer, summarize_turn
+from core.llm import (
+    build_context, extract_citations, get_llm, rewrite_query, stream_answer,
+    summarize_turn,
+)
 from core.notes import dedup_sources, notes_to_markdown, snippet
 from core.retrieval import Retriever, load_reranker
 
@@ -98,7 +101,12 @@ header[data-testid="stHeader"] { display: none; }
 .note-q { font-weight: 700; color: #22332F; margin-bottom: .35rem; }
 .note-points { margin: 0 0 .45rem 1.1rem; padding: 0; color: #3E4A49; font-size: .9rem; }
 .note-points li { margin-bottom: .15rem; }
-.note-src { font-size: .78rem; color: #9AA39D; }
+.note-src {
+  font-size: .78rem; color: #9AA39D; margin-top: .4rem;
+  display: flex; flex-direction: column; gap: .2rem;
+}
+.note-src-item { line-height: 1.35; }
+.note-src-item::before { content: "·"; color: #C9A46B; margin-right: .38rem; font-weight: 700; }
 .note-src a { color: #8C6428; text-decoration: none; }
 .note-src a:hover { text-decoration: underline; }
 
@@ -163,8 +171,10 @@ def load_resources():
 def note_card_html(n: dict) -> str:
     q = html.escape(n["q"])
     points = "".join(f"<li>{html.escape(p)}</li>" for p in n["points"])
-    srcs = " · ".join(
+    srcs = "".join(
+        f'<div class="note-src-item">'
         f'<a href="{html.escape(s["source_url"])}" target="_blank">《{html.escape(s["title"])}》</a>'
+        f'</div>'
         for s in n["sources"]
     )
     src_line = f'<div class="note-src">{srcs}</div>' if srcs else ""
@@ -226,22 +236,28 @@ if question:
                 for h in hits:
                     st.markdown(f"- 《{h['title']}》— {snippet(h['text'])}")
 
+            prompt, cite_srcs = build_context(question, hits, retriever.catalog)
             streamed = st.write_stream(
                 (chunk.choices[0].delta.content or "")
-                for chunk in stream_answer(llm, history, question, hits, retriever.catalog)
+                for chunk in stream_answer(llm, history, prompt)
                 if chunk.choices
             )
             # write_stream 返回 str | list；全是字符串块时归一成 str
             answer = streamed if isinstance(streamed, str) else "".join(map(str, streamed))
 
-            sources = dedup_sources(hits)
-            st.caption(
-                "来源："
-                + " · ".join(
-                    f"《{s['title']}》[{s['source_org']}]({s['source_url']})"
-                    for s in sources
+            # 来源清单跟着正文的 [n] 引用走；LLM 没标注时退回"检索命中去重"
+            cited = extract_citations(answer, cite_srcs)
+            if cited:
+                sources = [s for _, s in cited]
+                caption = " · ".join(
+                    f"[{n}] [《{s['title']}》]({s['source_url']})" for n, s in cited
                 )
-            )
+            else:
+                sources = dedup_sources(hits)
+                caption = " · ".join(
+                    f"[《{s['title']}》]({s['source_url']})" for s in sources
+                )
+            st.caption("来源：" + caption)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     with st.spinner("整理笔记中..."):

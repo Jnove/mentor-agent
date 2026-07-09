@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.chunking import split_by_headings
+from core.llm import build_context, extract_citations
 from core.notes import dedup_sources, notes_to_markdown, snippet
 from core.retrieval import pick_with_coverage, rrf_fuse, tokenize
 
@@ -60,6 +61,34 @@ def test_pick_with_coverage():
     ranked = [(0.9, h(str(i))) for i in range(10)]
     picked = pick_with_coverage(ranked, top_k=2, min_score=0.5, max_extra=3)
     assert len(picked) == 5, picked
+
+
+def test_build_context():
+    hit = {"title": "A", "source_url": "u1", "source_org": "O", "publish_date": "d",
+           "text": "正文", "file": "政策/a.md"}
+    cat = [
+        {"title": "A", "source_url": "u1", "source_org": "O", "publish_date": "d",
+         "file": "政策/a.md"},
+        {"title": "B", "source_url": "u2", "source_org": "O", "publish_date": "d",
+         "file": "政策/b.md"},
+    ]
+    prompt, sources = build_context("问?", [hit, hit], cat)
+    # 同一篇文档（资料出现两次 + 目录一次）只占一个编号
+    assert len(sources) == 2 and sources[0]["title"] == "A" and sources[1]["title"] == "B"
+    assert "【知识库目录】" in prompt and "[1]《A》" in prompt and "[2]《B》" in prompt
+    assert "【问题】\n问?" in prompt
+    # 无目录时不输出目录段
+    prompt2, _ = build_context("问?", [hit], [])
+    assert "【知识库目录】" not in prompt2
+
+
+def test_extract_citations():
+    sources = [{"title": "A"}, {"title": "B"}, {"title": "C"}]
+    cited = extract_citations("先说A[1]，再说C[3]，又提A[1]。", sources)
+    assert [(n, s["title"]) for n, s in cited] == [(1, "A"), (3, "C")]
+    # 越界编号和年份类数字不算引用
+    assert extract_citations("规定见[9]和2025年文件", sources) == []
+    assert extract_citations("完全没有标注", sources) == []
 
 
 def test_snippet():
