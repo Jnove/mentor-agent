@@ -5,7 +5,9 @@ logs/
 __pycache__/
 mentor/
 .claude/
-docs/
+# docs/ 整体不进仓库，但设计文档（specs）例外
+docs/*
+!docs/superpowers/
 pyrightconfig.json
 
 # 真实政策文档不进仓库（版权/时效/敏感信息考虑），只保留虚构示例保证 clone 即可跑
