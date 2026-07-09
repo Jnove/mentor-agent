@@ -8,6 +8,7 @@ from streamlit_cookies_controller import CookieController
 
 from core import auth
 from core.config import auth_secret
+from ui.admin_page import render_admin
 from ui.auth_pages import COOKIE_NAME, render_auth
 from ui.chat_page import render_chat
 
@@ -48,6 +49,8 @@ if user is None:
     st.stop()
 
 pages = [st.Page(render_chat, title="问答", icon="🎓", default=True)]
+if user["role"] == "admin":
+    pages.append(st.Page(render_admin, title="用户管理", icon="🔧"))
 nav = st.navigation(pages)
 with st.sidebar:
     st.caption(user["email"])
