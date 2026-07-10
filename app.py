@@ -41,7 +41,12 @@ def current_user() -> dict | None:
 
 
 def _logout() -> None:
+    # 保留 CookieController 的缓存键（'cookies'）：清掉它会让下一轮 controller
+    # 重新拉取浏览器 cookie 并触发 rerun，旧 token 又把人登回来
+    _cookies_cache = st.session_state.get("cookies")
     st.session_state.clear()
+    if _cookies_cache is not None:
+        st.session_state["cookies"] = _cookies_cache
     st.session_state.pending_cookie_clear = True  # 回调里组件不渲染，删除挪到下一轮
 
 
