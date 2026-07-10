@@ -15,6 +15,9 @@ def login_as(user: dict, controller) -> None:
 
     不能在这里直接 controller.set：调用方随后 st.rerun() 会清掉本次运行的
     元素，写 cookie 的前端组件来不及执行（streamlit-cookies-controller 的坑）。
+
+    已知窗口：暂存到下一轮写入之间用户手动刷新会丢失登录态（session_state
+    随连接销毁、cookie 尚未写入），退回登录页重登即可，属可接受降级，勿为此加复杂度。
     """
     days = session_days()
     token = auth.sign_token(user["id"], int(time.time()) + days * 86400, auth_secret())
