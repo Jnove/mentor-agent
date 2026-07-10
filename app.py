@@ -41,16 +41,23 @@ def current_user() -> dict | None:
 
 
 def _logout() -> None:
-    # streamlit_cookies_controller.remove() 内部用 dict.pop 无默认值，cookie 不在本次组件缓存时会抛 KeyError
+    st.session_state.clear()
+    st.session_state.pending_cookie_clear = True  # 回调里组件不渲染，删除挪到下一轮
+
+
+if st.session_state.pop("pending_cookie_clear", False):
     if controller.get(COOKIE_NAME):
         controller.remove(COOKIE_NAME)
-    st.session_state.clear()
-
 
 user = current_user()
 if user is None:
     render_auth(controller)
     st.stop()
+
+# 上一轮 login_as 暂存的 cookie 在这一轮写入——本轮无 rerun，组件能完整渲染
+if "pending_auth_cookie" in st.session_state:
+    _token, _max_age = st.session_state.pop("pending_auth_cookie")
+    controller.set(COOKIE_NAME, _token, max_age=_max_age, secure=True)
 
 pages = [st.Page(render_chat, title="问答", icon="🎓", default=True)]
 if user["role"] == "admin":

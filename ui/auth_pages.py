@@ -11,10 +11,14 @@ COOKIE_NAME = "mentor_auth"
 
 
 def login_as(user: dict, controller) -> None:
-    """签 token 写 cookie，并把用户挂到 session_state。"""
+    """签 token 暂存到 session_state，由 app.py 在下一轮渲染时写入 cookie。
+
+    不能在这里直接 controller.set：调用方随后 st.rerun() 会清掉本次运行的
+    元素，写 cookie 的前端组件来不及执行（streamlit-cookies-controller 的坑）。
+    """
     days = session_days()
     token = auth.sign_token(user["id"], int(time.time()) + days * 86400, auth_secret())
-    controller.set(COOKIE_NAME, token, max_age=days * 86400, secure=True)
+    st.session_state.pending_auth_cookie = (token, days * 86400)
     st.session_state.user = {"id": user["id"], "email": user["email"], "role": user["role"]}
 
 
