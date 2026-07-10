@@ -38,6 +38,9 @@ docker compose run --rm app python ingest.py
 
 # 5. 重启 app 让 BM25 索引看到新文档（索引建在内存里，ingest 不会自动生效）
 docker compose restart app
+
+# 6. 注册第一个账号后，把它提升为管理员
+docker compose run --rm app python scripts/make_admin.py 你的邮箱@zju.edu.cn
 ```
 
 首次启动会往 `hf-cache` 卷里下载 embedding 模型和 reranker（共约 1.2GB，走 hf-mirror），
@@ -58,7 +61,7 @@ docker compose restart app
 
 ### 备份
 
-备份这三样即可完整恢复：`knowledge_base/`、`chroma_db/`、`.env`。
+备份这四样即可完整恢复：`knowledge_base/`、`chroma_db/`、`data/`、`.env`。
 `chroma_db/` 丢了也能靠 `ingest.py --rebuild` 重建，只是要重新算一遍 embedding。
 
 ---
@@ -162,3 +165,9 @@ proxy_set_header Connection "upgrade";
 **版本可复现性** —— `requirements.txt` 只有下限约束，不同时间部署装出来的版本可能不同
 （chromadb 大版本间数据格式变过）。要严格锁定的话，在一次可用的部署里
 `pip freeze > requirements.lock`，之后统一用 `pip install -r requirements.lock` 安装。
+
+**注册收不到验证码** —— `.env` 里 SMTP 未配置时是开发模式，验证码打印在
+`docker compose logs -f app` 里；配置了 SMTP 仍收不到，检查授权码和 465 端口连通性。
+
+**AUTH_SECRET 报错退出** —— 认证功能要求 `.env` 里必须配置 `AUTH_SECRET`，
+用 `python -c "import secrets; print(secrets.token_hex(32))"` 生成一个随机值填入。

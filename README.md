@@ -7,7 +7,9 @@ mentor-agent/
 ├── KB_FORMAT.md          # 知识库文档格式规范（数据组必读）
 ├── knowledge_base/       # 数据组往这里放 markdown 文档
 ├── ingest.py             # CLI：增量入库（--rebuild 全量重建）
-├── app.py                # Streamlit 界面（纯 UI 层）
+├── app.py                # 入口：登录门禁 + 页面导航
+├── ui/                   # Streamlit 界面：问答 / 登录注册 / 用户管理
+├── data/auth.db          # 用户库（自动创建，不进 git）
 ├── core/                 # 业务逻辑
 │   ├── config.py         #   路径/常量/env 统一入口
 │   ├── chunking.py       #   文档切块
@@ -30,7 +32,7 @@ pip install -r requirements.txt
 ```
 > 这里建议使用虚拟环境
 #### 2. 配置：复制 .env.example 为 .env，填入 API Key（Windows 直接复制粘贴改名即可）
->    LLM_API_KEY / LLM_BASE_URL / LLM_MODEL，任何 OpenAI 兼容接口都行
+>    LLM_API_KEY / LLM_BASE_URL / LLM_MODEL，任何 OpenAI 兼容接口都行。.env 还需配置 AUTH_SECRET（生成方式见 .env.example）；SMTP 留空则验证码打印在控制台（开发模式）。
 
 #### 3. 数据组按 KB_FORMAT.md 往 knowledge_base/ 放文档
 
@@ -45,6 +47,7 @@ python ingest.py
 ```
 streamlit run app.py
 ```
+注册第一个账号后执行 python scripts/make_admin.py 你的邮箱 获得管理页。
 
 首次运行会下载中文 embedding 模型 bge-small-zh（约 100MB）和重排模型
 bge-reranker-base（约 1.1GB，可在 .env 里设 `RERANK_MODEL=off` 跳过）。
