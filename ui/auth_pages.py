@@ -14,7 +14,7 @@ def login_as(user: dict, controller) -> None:
     """签 token 写 cookie，并把用户挂到 session_state。"""
     days = session_days()
     token = auth.sign_token(user["id"], int(time.time()) + days * 86400, auth_secret())
-    controller.set(COOKIE_NAME, token, max_age=days * 86400)
+    controller.set(COOKIE_NAME, token, max_age=days * 86400, secure=True)
     st.session_state.user = {"id": user["id"], "email": user["email"], "role": user["role"]}
 
 

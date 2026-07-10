@@ -142,6 +142,10 @@ proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection "upgrade";
 ```
 
+认证相关的安全基线：登录 cookie 已设 Secure 标志，**生产环境必须置于 HTTPS 反代之后**
+（否则浏览器不会保存登录态）；cookie 由前端组件写入、无法设 HttpOnly，XSS 防护依赖
+反代层配置 CSP 兜底。已知的低风险留档项见 docs/superpowers/specs/2026-07-09-auth-design.md 对应实现。
+
 ---
 
 ## 常见问题

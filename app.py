@@ -34,12 +34,16 @@ def current_user() -> dict | None:
         if u and u["status"] == "active":
             st.session_state.user = {"id": u["id"], "email": u["email"], "role": u["role"]}
             return st.session_state.user
-        controller.remove(COOKIE_NAME)
+        # 同上：remove() 缺默认值会 KeyError，这里 token 存在理论上缓存里也有，但保持一致防护
+        if controller.get(COOKIE_NAME):
+            controller.remove(COOKIE_NAME)
     return None
 
 
 def _logout() -> None:
-    controller.remove(COOKIE_NAME)
+    # streamlit_cookies_controller.remove() 内部用 dict.pop 无默认值，cookie 不在本次组件缓存时会抛 KeyError
+    if controller.get(COOKIE_NAME):
+        controller.remove(COOKIE_NAME)
     st.session_state.clear()
 
 
