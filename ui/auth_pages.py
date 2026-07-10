@@ -26,21 +26,32 @@ def login_as(user: dict, controller) -> None:
 
 
 def render_auth(controller) -> None:
-    st.markdown("## 学长组 Agent · 登录")
-    if not smtp_configured():
-        st.warning("开发模式：SMTP 未配置，验证码会打印在服务器控制台。")
-    tab_login, tab_register = st.tabs(["登录", "注册"])
-    with tab_login:
-        _render_login(controller)
-    with tab_register:
-        _render_register(controller)
+    # 与问答页同一套品牌语言：eyebrow + 衬线标题 + 渐变短线，居中；表单收进毛玻璃卡片
+    _, mid, _ = st.columns([1, 1.15, 1])
+    with mid:
+        st.markdown(
+            '<div class="auth-hero">'
+            '<div class="eyebrow">Mentor Group · 学长知识台</div>'
+            '<div class="brand">学长组<span class="apo">\'s</span> Agent</div>'
+            '<div class="brand-sub">校园政策问答 · 回答均附来源 · 校内邮箱注册使用</div>'
+            '<div class="brand-rule"></div></div>',
+            unsafe_allow_html=True,
+        )
+        with st.container(key="auth_box"):
+            if not smtp_configured():
+                st.warning("开发模式：SMTP 未配置，验证码会打印在服务器控制台。")
+            tab_login, tab_register = st.tabs(["登录", "注册"])
+            with tab_login:
+                _render_login(controller)
+            with tab_register:
+                _render_register(controller)
 
 
 def _render_login(controller) -> None:
     with st.form("login_form"):
         email = st.text_input("邮箱")
         password = st.text_input("密码", type="password")
-        if st.form_submit_button("登录", use_container_width=True):
+        if st.form_submit_button("登录", type="primary", width="stretch"):
             status, user = auth.authenticate(email.strip().lower(), password)
             if status == "ok":
                 login_as(user, controller)
@@ -58,7 +69,7 @@ def _render_register(controller) -> None:
     if step == 1:
         with st.form("reg_email_form"):
             email = st.text_input("邮箱（仅限校内邮箱）")
-            if st.form_submit_button("发送验证码", use_container_width=True):
+            if st.form_submit_button("发送验证码", type="primary", width="stretch"):
                 email = email.strip().lower()
                 domains = allowed_email_domains()
                 if not auth.email_allowed(email, domains):
@@ -84,7 +95,7 @@ def _render_register(controller) -> None:
         with st.form("reg_code_form"):
             code = st.text_input("6 位验证码")
             password = st.text_input("设置密码（至少 8 位）", type="password")
-            if st.form_submit_button("完成注册", use_container_width=True):
+            if st.form_submit_button("完成注册", type="primary", width="stretch"):
                 if len(password) < 8:
                     st.error("密码至少 8 位")
                 elif not auth.verify_code(st.session_state.reg_email, code):
@@ -99,6 +110,6 @@ def _render_register(controller) -> None:
                         st.session_state.pop("reg_email", None)
                         login_as(auth.get_user(uid), controller)
                         st.rerun()
-        if st.button("换个邮箱重新发送"):
+        if st.button("换个邮箱重新发送", type="tertiary"):
             st.session_state.reg_step = 1
             st.rerun()

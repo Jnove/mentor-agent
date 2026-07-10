@@ -11,7 +11,10 @@ def _fmt(ts) -> str:
 
 
 def render_admin() -> None:
-    st.markdown("### 用户管理")
+    st.markdown(
+        '<div class="panel-title"><span class="bar bar-bronze"></span>用户管理</div>',
+        unsafe_allow_html=True,
+    )
     me = st.session_state.user
     for u in auth.list_users():
         is_me = u["id"] == me["id"]

@@ -11,8 +11,10 @@ from core.config import auth_secret
 from ui.admin_page import render_admin
 from ui.auth_pages import COOKIE_NAME, render_auth
 from ui.chat_page import render_chat
+from ui.theme import apply_theme
 
 st.set_page_config(page_title="学长组 Agent", page_icon="🎓", layout="wide")
+apply_theme()
 
 auth.init_db()
 _secret = auth_secret()  # 缺 AUTH_SECRET 在这里就报错，不带病运行
@@ -67,11 +69,11 @@ if "pending_auth_cookie" in st.session_state:
     _token, _max_age = st.session_state.pop("pending_auth_cookie")
     controller.set(COOKIE_NAME, _token, max_age=_max_age, secure=True)
 
-pages = [st.Page(render_chat, title="问答", icon="🎓", default=True)]
+pages = [st.Page(render_chat, title="问答", icon=":material/school:", default=True)]
 if user["role"] == "admin":
-    pages.append(st.Page(render_admin, title="用户管理", icon="🔧"))
+    pages.append(st.Page(render_admin, title="用户管理", icon=":material/manage_accounts:"))
 nav = st.navigation(pages)
 with st.sidebar:
     st.caption(user["email"])
-    st.button("退出登录", on_click=_logout, use_container_width=True)
+    st.button("退出登录", on_click=_logout, width="stretch")
 nav.run()

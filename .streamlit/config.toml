@@ -1,0 +1,21 @@
+# 品牌主题：象牙白底 + 青（主）× 青铜（辅），与 ui/theme.py 的 CSS 配套
+# 能用原生主题配置的都放这里，毛玻璃等 config 做不到的才写 CSS
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#0F7B72"
+backgroundColor = "#FFFEF8"
+secondaryBackgroundColor = "#F4F0E3"
+textColor = "#22332F"
+borderColor = "#E3DCC8"
+linkColor = "#8C6428"
+linkUnderline = false
+baseRadius = "12px"
+buttonRadius = "full"
+
+[theme.sidebar]
+backgroundColor = "#FBF8EE"
+secondaryBackgroundColor = "#F1ECDB"
+borderColor = "#E9E2CE"
