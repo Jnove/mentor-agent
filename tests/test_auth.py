@@ -10,7 +10,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core import auth
-from core.config import allowed_email_domains, auth_secret, session_days
+from core.config import admin_emails, allowed_email_domains, auth_secret, session_days
+
+
+def test_admin_emails():
+    os.environ.pop("ADMIN_EMAILS", None)
+    assert admin_emails() == []
+    os.environ["ADMIN_EMAILS"] = " Boss@ZJU.edu.cn ,tutor@zju.edu.cn,"
+    try:
+        assert admin_emails() == ["boss@zju.edu.cn", "tutor@zju.edu.cn"]
+    finally:
+        os.environ.pop("ADMIN_EMAILS", None)
 
 
 def test_allowed_email_domains():
@@ -249,6 +259,40 @@ def test_mailer_smtp_send():
                 assert str(e) == "boom"
     finally:
         _restore_mailer_env(saved)
+
+
+def test_admin_bootstrap_on_create():
+    db = _tmp_db()
+    os.environ["ADMIN_EMAILS"] = "Boss@ZJU.edu.cn"
+    try:
+        # 名单里的邮箱注册即管理员（大小写/空格不敏感），名单外的仍是普通用户
+        uid = auth.create_user("  boss@zju.edu.cn ", "hunter2hunter2", db_path=db)
+        assert auth.get_user(uid, db_path=db)["role"] == "admin"
+        uid2 = auth.create_user("kid@zju.edu.cn", "hunter2hunter2", db_path=db)
+        assert auth.get_user(uid2, db_path=db)["role"] == "user"
+    finally:
+        os.environ.pop("ADMIN_EMAILS", None)
+        os.unlink(db)
+
+
+def test_admin_bootstrap_on_login():
+    db = _tmp_db()
+    try:
+        uid = auth.create_user("boss@zju.edu.cn", "hunter2hunter2", db_path=db)
+        assert auth.get_user(uid, db_path=db)["role"] == "user"
+
+        # 老账号：加进名单后下次登录自动提升
+        os.environ["ADMIN_EMAILS"] = "boss@zju.edu.cn"
+        status, user = auth.authenticate("boss@zju.edu.cn", "hunter2hunter2", db_path=db)
+        assert status == "ok" and user["role"] == "admin"
+
+        # 只提升不降级：移出名单后仍是管理员（撤销走管理页）
+        os.environ.pop("ADMIN_EMAILS", None)
+        status, user = auth.authenticate("boss@zju.edu.cn", "hunter2hunter2", db_path=db)
+        assert status == "ok" and user["role"] == "admin"
+    finally:
+        os.environ.pop("ADMIN_EMAILS", None)
+        os.unlink(db)
 
 
 if __name__ == "__main__":

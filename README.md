@@ -47,7 +47,8 @@ python ingest.py
 ```
 streamlit run app.py
 ```
-注册第一个账号后执行 python scripts/make_admin.py 你的邮箱 获得管理页。
+想要「用户管理」页，先在 .env 里填 `ADMIN_EMAILS=你的邮箱@zju.edu.cn`，注册后即为管理员
+（老账号加进名单后退出重登生效）；也可对已注册账号跑 `python scripts/make_admin.py 你的邮箱`。
 
 首次运行会下载中文 embedding 模型 bge-small-zh（约 100MB）和重排模型
 bge-reranker-base（约 1.1GB，可在 .env 里设 `RERANK_MODEL=off` 跳过）。

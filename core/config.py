@@ -44,6 +44,16 @@ def allowed_email_domains() -> list[str]:
     return [d.strip().lstrip("@").lower() for d in raw.split(",") if d.strip()]
 
 
+def admin_emails() -> list[str]:
+    """管理员邮箱白名单：名单里的邮箱注册即为管理员，已注册的下次登录自动提升。
+
+    只提升不降级——从名单移除不会撤销管理员（否则会和管理页手动授予的管理员打架），
+    撤销请走管理页。这里只放邮箱，不放密码：密码始终由本人注册时设定。
+    """
+    raw = os.environ.get("ADMIN_EMAILS", "")
+    return [e.strip().lower() for e in raw.split(",") if e.strip()]
+
+
 def auth_secret() -> str:
     """cookie 签名密钥，缺失直接报错（不默默用弱密钥）。"""
     s = os.environ.get("AUTH_SECRET", "")

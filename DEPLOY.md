@@ -38,8 +38,15 @@ docker compose run --rm app python ingest.py
 
 # 5. 重启 app 让 BM25 索引看到新文档（索引建在内存里，ingest 不会自动生效）
 docker compose restart app
+```
 
-# 6. 注册第一个账号后，把它提升为管理员
+管理员：在 `.env` 里填 `ADMIN_EMAILS=你的邮箱@zju.edu.cn`（逗号分隔可多个），
+该邮箱在页面正常注册后即拥有「用户管理」页。老账号加进名单后，退出重新登录即生效
+（只提升不降级，撤销管理员请在管理页操作）。
+
+也可以对已注册账号手动提升：
+
+```bash
 docker compose run --rm app python scripts/make_admin.py 你的邮箱@zju.edu.cn
 ```
 

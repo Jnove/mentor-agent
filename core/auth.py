@@ -12,7 +12,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from core.config import AUTH_DB
+from core.config import AUTH_DB, admin_emails
 
 # 验证码
 CODE_TTL = 600          # 10 分钟有效
@@ -94,6 +94,9 @@ def create_user(email: str, password: str, role: str = "user",
         raise ValueError("密码至少 8 位")
     now = int(time.time()) if now is None else now
     email = email.strip().lower()
+    # .env 的 ADMIN_EMAILS 名单：注册即管理员（显式传 role 的调用方优先）
+    if role == "user" and email in admin_emails():
+        role = "admin"
     with _connect(db_path) as db:
         try:
             cur = db.execute(
@@ -212,6 +215,9 @@ def authenticate(email: str, password: str, db_path: str | None = None,
             "UPDATE users SET failed_logins=0, locked_until=0, last_login_at=? WHERE id=?",
             (now, user["id"]),
         )
+    # ADMIN_EMAILS 里的老账号在这里补提升；只升不降，撤销走管理页
+    if user["role"] != "admin" and user["email"] in admin_emails():
+        set_role(user["id"], "admin", db_path=db_path)
     return "ok", get_user(user["id"], db_path=db_path)
 
 
