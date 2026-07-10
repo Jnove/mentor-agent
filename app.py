@@ -45,11 +45,13 @@ def _logout() -> None:
     st.session_state.pending_cookie_clear = True  # 回调里组件不渲染，删除挪到下一轮
 
 
-if st.session_state.pop("pending_cookie_clear", False):
-    if controller.get(COOKIE_NAME):
-        controller.remove(COOKIE_NAME)
+# 登出后的这一轮：渲染删除组件的同时必须跳过 cookie 门禁——
+# controller.get 在本轮读到的还是服务端缓存的旧 token，会把人重新登进来
+_logging_out = st.session_state.pop("pending_cookie_clear", False)
+if _logging_out and controller.get(COOKIE_NAME):
+    controller.remove(COOKIE_NAME)
 
-user = current_user()
+user = None if _logging_out else current_user()
 if user is None:
     render_auth(controller)
     st.stop()
