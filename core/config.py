@@ -13,7 +13,10 @@ DB_DIR = str(ROOT / "chroma_db")
 COLLECTION = "senior_agent"
 TOP_K = 5           # 最终喂给 LLM 的片段数
 CANDIDATES = 20     # 混合检索召回的候选数（重排前）
-MAX_CHUNK_CHARS = 800
+# 块长要给 512 token 窗口留余量：bge-small-zh 嵌入和 bge-reranker 打分都在 512 处
+# 静默截断（中文约 1 字 = 1 token），而入库时每块还要拼「标题/分类/检索标签」前缀
+# （全库实测平均约 160 字），reranker 的窗口里 query 也占一份。改这个值后必须 --rebuild。
+MAX_CHUNK_CHARS = 350
 
 # 覆盖补位：top_k 之外、重排得分仍 >= COVER_MIN_SCORE 的"未覆盖文档"各补最优一块。
 # 枚举类问题（"有哪几种"）所有相关文档得分都高，top_k 装不下会自动补齐；
@@ -21,9 +24,9 @@ MAX_CHUNK_CHARS = 800
 COVER_MIN_SCORE = 0.5
 COVER_MAX_EXTRA = 5  # 最多补几块（总片段数 <= TOP_K + COVER_MAX_EXTRA）
 
-# HF 镜像（下载 embedding / reranker 模型用），在 import transformers 前生效
-if os.environ.get("HF_ENDPOINT"):
-    os.environ.setdefault("HF_ENDPOINT", os.environ["HF_ENDPOINT"])
+# HF 镜像默认值（下载 embedding / reranker 模型用），在 import transformers 前生效；
+# .env / 环境变量里显式配置的值优先
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 
 def llm_model() -> str:

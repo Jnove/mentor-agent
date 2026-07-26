@@ -16,9 +16,13 @@ import chromadb
 import frontmatter
 
 from core.chunking import split_by_headings
-from core.config import COLLECTION, DB_DIR, KB_DIR
+from core.config import COLLECTION, DB_DIR, KB_DIR, MAX_CHUNK_CHARS
 
 REQUIRED = ["title", "source_url", "source_org", "publish_date", "category"]
+
+# 切块配置参与 content_hash：改块长/切块算法后，普通增量 ingest 也会重切全部文档，
+# 不依赖使用者记得 --rebuild（换 embedding 模型仍必须 --rebuild）。改切块算法时递增版本号。
+_CHUNK_STAMP = f"|chunker-v2:{MAX_CHUNK_CHARS}".encode()
 
 
 def load_docs():
@@ -34,7 +38,7 @@ def load_docs():
         if post.get("valid", True) is False:
             print(f"[跳过] {path.name} 已标记失效")
             continue
-        docs.append((path, post, hashlib.sha256(raw).hexdigest()))
+        docs.append((path, post, hashlib.sha256(raw + _CHUNK_STAMP).hexdigest()))
     return docs
 
 
@@ -53,6 +57,11 @@ def make_chunks(path, post, content_hash):
         tag_text = str(tags).strip()
     search_prefix = f"标题：{post['title']}\n分类：{post['category']}"
     if tag_text:
+        # 前缀和正文共享 embedding/reranker 的 512 token 窗口（见 config.MAX_CHUNK_CHARS），
+        # 个别文档标签长达 400 字会把正文挤出窗口；截到 100 字内最后一个完整标签，
+        # 完整标签仍在 meta 里
+        if len(tag_text) > 100:
+            tag_text = tag_text[:100].rsplit("、", 1)[0]
         search_prefix += f"\n检索标签：{tag_text}"
     for i, chunk in enumerate(split_by_headings(post.content)):
         ids.append(f"{rel}::{i}")
