@@ -23,6 +23,11 @@ def login_as(user: dict, controller) -> None:
     token = auth.sign_token(user["id"], int(time.time()) + days * 86400, auth_secret())
     st.session_state.pending_auth_cookie = (token, days * 86400)
     st.session_state.user = {"id": user["id"], "email": user["email"], "role": user["role"]}
+    # 清上一个账号的聊天状态：账号被禁用后换人登录不会经过"退出登录"的
+    # session_state.clear()，不清的话新用户会看到前一个人的对话、笔记，
+    # 且追问候选继承（last_hit_ids）会把前一个人的检索主题带进来
+    for key in ("messages", "notes", "last_hit_ids"):
+        st.session_state.pop(key, None)
 
 
 def render_auth(controller) -> None:

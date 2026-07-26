@@ -24,10 +24,11 @@ from core.config import COLLECTION, DB_DIR
 from core.embeddings import get_embedder
 from core.llm import (
     build_context, get_llm, renumber_citations, rewrite_query, stream_answer,
-    summarize_turn,
+    strip_citations, summarize_turn,
 )
 from core.notes import dedup_sources, notes_to_markdown, snippet
 from core.retrieval import Retriever, load_reranker
+from core.slang import expand_query
 
 
 @st.cache_resource
@@ -91,9 +92,10 @@ def render_chat():
                     # 检索详情和来源行都存在消息里，重跑（导出/追问）后一起重绘
                     r = msg.get("retrieval")
                     if r:
-                        with st.expander(f"检索到 {r['n']} 条相关片段"):
+                        title = f"检索到 {r['n']} 条相关片段" if r["n"] else "未检索到相关片段"
+                        with st.expander(title):
                             if r["rewritten"]:
-                                st.caption(f"追问已改写为：{r['rewritten']}")
+                                st.caption(f"实际检索词：{r['rewritten']}")
                             for line in r["items"]:
                                 st.markdown(line)
                     st.markdown(msg["content"])
@@ -102,9 +104,13 @@ def render_chat():
         question = st.chat_input("例如：转专业需要什么条件？")
 
     if question:
-        # 不含当前问题；只保留 role/content，附加字段（sources_md）不能发给 LLM 接口
+        # 不含当前问题；只保留 role/content，附加字段（sources_md）不能发给 LLM 接口。
+        # assistant 历史要洗掉引用编号——那些编号对应上一轮的来源表，喂回去会被
+        # 模型照抄、在本轮重编号时串到错误来源
         history = [
-            {"role": m["role"], "content": m["content"]}
+            {"role": m["role"],
+             "content": strip_citations(m["content"])
+             if m["role"] == "assistant" else m["content"]}
             for m in st.session_state.messages
         ]
         st.session_state.messages.append({"role": "user", "content": question})
@@ -118,16 +124,27 @@ def render_chat():
                 try:
                     with st.spinner("检索知识库中..."):
                         search_q = rewrite_query(llm, history, question)
-                        hits = retriever.search(search_q)
-                    # 检索详情随消息保存，重跑后历史循环里能原样重绘
+                        # 追问时把上一轮命中并入重排候选池，答案前后依据保持连贯
+                        hits = retriever.search(
+                            search_q,
+                            carry_ids=st.session_state.get("last_hit_ids", ()),
+                        )
+                    # 检索详情随消息保存，重跑后历史循环里能原样重绘。
+                    # 展示的是真实检索词：含改写和黑话扩展（search 内部同一函数），
+                    # 否则扩展词把意外文档拉进结果时从 UI 上查不出原因
+                    shown_q = expand_query(search_q)
                     retrieval = {
                         "n": len(hits),
-                        "rewritten": search_q if search_q != question else "",
+                        "rewritten": shown_q if shown_q != question else "",
                         "items": [f"- 《{h['title']}》— {snippet(h['text'])}" for h in hits],
                     }
-                    with st.expander(f"检索到 {retrieval['n']} 条相关片段"):
+                    exp_title = (
+                        f"检索到 {retrieval['n']} 条相关片段"
+                        if retrieval["n"] else "未检索到相关片段"
+                    )
+                    with st.expander(exp_title):
                         if retrieval["rewritten"]:
-                            st.caption(f"追问已改写为：{retrieval['rewritten']}")
+                            st.caption(f"实际检索词：{retrieval['rewritten']}")
                         for line in retrieval["items"]:
                             st.markdown(line)
 
@@ -151,7 +168,8 @@ def render_chat():
                         caption = " · ".join(
                             f"[《{s['title']}》]({s['source_url']})" for s in sources
                         )
-                    st.caption("来源：" + caption)
+                    if caption:  # 零命中且模型未标注引用时没有来源，不渲染裸标签
+                        st.caption("来源：" + caption)
                     ok = True
                 except Exception as e:
                     # Streamlit 自身的控制流异常必须放行（当前版本继承 BaseException
@@ -172,6 +190,10 @@ def render_chat():
                         st.session_state.messages.pop()
 
         if ok:
+            if hits:
+                # 零命中轮（库外问题被阈值过滤光）不覆写：中间插一个闲聊问题
+                # 不应该把上一轮的追问连续性状态清掉
+                st.session_state.last_hit_ids = [h["id"] for h in hits if "id" in h]
             st.session_state.messages.append(
                 {"role": "assistant", "content": answer,
                  "sources_md": caption, "retrieval": retrieval}

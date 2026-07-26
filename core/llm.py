@@ -5,7 +5,7 @@ import re
 import httpx
 from openai import OpenAI
 
-from core.config import llm_model
+from core.config import llm_model, llm_model_light
 
 SYSTEM_PROMPT = """你是"学长组 Agent"，帮同学解答学校政策、通知、常见问题。
 规则：
@@ -67,12 +67,23 @@ def build_context(question: str, hits: list[dict],
         cat_lines.append(f"  [{cite(m)}]《{m.get('title')}》({m.get('publish_date')})")
 
     prompt = f"【知识库目录】\n" + "\n".join(cat_lines) + "\n\n" if cat_lines else ""
-    prompt += "【资料】\n" + "\n\n".join(blocks) + f"\n\n【问题】\n{question}"
+    # 检索空手而归时给显式"无据"信号（低分候选已被 PROMPT_MIN_SCORE 过滤），
+    # 让系统提示词第 1 条的拒答规则有据可依；目录仍在，枚举/元问题不受影响
+    body = "\n\n".join(blocks) if blocks else "（本轮检索没有找到与问题相关的资料片段）"
+    prompt += "【资料】\n" + body + f"\n\n【问题】\n{question}"
     return prompt, sources
 
 
 # 1-3 位编号：编号空间跨资料+全库目录，早已过百；[2025] 这类年份是 4 位，不会误伤
 _CITE = re.compile(r"\[(\d{1,3})\]")
+
+
+def strip_citations(text: str) -> str:
+    """历史消息喂回 LLM 前去掉引用编号。
+
+    上一轮答案里的 [2] 对应上一轮的来源表，留着会被模型照抄进新回答，
+    再被本轮 renumber_citations 串号到完全不同的来源上，且越界检查发现不了。"""
+    return _CITE.sub("", text)
 
 
 def renumber_citations(answer: str, sources: list[dict]) -> tuple[str, list[tuple[int, dict]]]:
@@ -130,12 +141,13 @@ def rewrite_query(llm, history: list[dict], question: str) -> str:
     )
     try:
         res = llm.chat.completions.create(
-            model=llm_model(),
+            model=llm_model_light(),
             messages=[{
                 "role": "user",
                 "content": (
                     "根据对话历史，把同学的最新问题改写成一个不依赖上下文、"
                     "可独立理解的完整问题，用于检索学校政策文档。"
+                    "改写时把口语、简称、校园黑话替换成文档里会用的正式名词。"
                     "只输出改写后的问题本身，不要任何解释。"
                     "如果最新问题本身已经完整独立，原样输出即可。\n\n"
                     f"【对话历史】\n{context}\n\n【最新问题】\n{question}"
@@ -157,7 +169,7 @@ def summarize_turn(llm, question: str, answer: str) -> list[str]:
     answer = _CITE.sub("", answer)  # 引用编号对笔记要点是噪音
     try:
         res = llm.chat.completions.create(
-            model=llm_model(),
+            model=llm_model_light(),
             messages=[{
                 "role": "user",
                 "content": (

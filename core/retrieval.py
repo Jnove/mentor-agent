@@ -10,8 +10,10 @@ import sys
 from collections import defaultdict
 
 from core.config import (
-    CANDIDATES, COVER_MAX_EXTRA, COVER_MIN_SCORE, TOP_K, rerank_model,
+    CANDIDATES, COVER_MAX_EXTRA, COVER_MIN_SCORE, PROMPT_MIN_SCORE, TOP_K,
+    rerank_model,
 )
+from core.slang import expand_query
 
 _TOKEN_CLEAN = re.compile(r"[^\w一-鿿]+")
 
@@ -117,18 +119,34 @@ class Retriever:
         ranked = sorted(zip(self.ids, scores), key=lambda x: x[1], reverse=True)
         return [i for i, s in ranked[:n] if s > 0]
 
-    def search(self, query: str, top_k: int = TOP_K) -> list[dict]:
+    def search(self, query: str, top_k: int = TOP_K,
+               min_score: float = PROMPT_MIN_SCORE,
+               carry_ids: tuple = ()) -> list[dict]:
+        """min_score 是重排分入围下限；eval 调参时传 -1 可看到全部候选的分数。
+
+        carry_ids：上一轮命中的块 id，追问时并入候选池一起重排——只保送进候选、
+        不保送进结果，去留由重排分说话。避免改写后的检索式把上一轮的依据整体
+        漂移掉、答案前后矛盾。无 reranker 时忽略（没有分数无从裁决）。
+        """
         if not self.ids:
             return []
+        query = expand_query(query)  # 黑话 -> 正式名词，两路召回和重排共用
         n = min(CANDIDATES, len(self.ids))
         fused = rrf_fuse([
             self._vector_channel(query, n),
             self._bm25_channel(query, n),
         ])[:n]
-        hits = [{"text": self.docs[i], **self.metas[i]} for i in fused]
+        if self.reranker is not None:
+            fused += [i for i in carry_ids if i in self.docs and i not in fused]
+        hits = [{"id": i, "text": self.docs[i], **self.metas[i]} for i in fused]
 
         if self.reranker is not None and len(hits) > 1:
             scores = self.reranker.predict([(query, h["text"]) for h in hits])
-            ranked = sorted(zip(scores, hits), key=lambda x: x[0], reverse=True)
-            return pick_with_coverage([(float(s), h) for s, h in ranked], top_k)
+            for s, h in zip(scores, hits):
+                h["score"] = float(s)  # 透出重排分，eval/调参用
+            hits.sort(key=lambda h: h["score"], reverse=True)
+            # 低分候选不入围：库外问题所有候选都接近 0，全被过滤时返回 []，
+            # 上层据此给"无据"信号而不是硬凑 top_k 条噪音
+            ranked = [(h["score"], h) for h in hits if h["score"] >= min_score]
+            return pick_with_coverage(ranked, top_k)
         return hits[:top_k]

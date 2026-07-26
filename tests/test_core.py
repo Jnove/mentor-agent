@@ -122,6 +122,10 @@ def test_build_context():
     # 无目录时不输出目录段
     prompt2, _ = build_context("问?", [hit], [])
     assert "【知识库目录】" not in prompt2
+    # 检索空手而归（低分全被过滤）：给显式"无据"信号，目录仍在
+    prompt3, sources3 = build_context("问?", [], cat)
+    assert "没有找到" in prompt3 and "【知识库目录】" in prompt3
+    assert len(sources3) == 2  # 目录来源仍参与编号
 
 
 def test_stream_answer_filters_gateway_tail():
@@ -154,6 +158,23 @@ def test_renumber_citations():
     many = [{"title": f"S{i}"} for i in range(120)]
     text, cited = renumber_citations("依据[103]。", many)
     assert text == "依据[1]。" and cited == [(1, many[102])]
+
+
+def test_expand_query():
+    from core.slang import expand_query
+
+    assert "竺可桢学院" in expand_query("竺院是干什么的")
+    assert "校园卡" in expand_query("一卡通丢了怎么办")
+    # 未命中原样返回；正式名词已在 query 里不重复追加
+    assert expand_query("转专业需要什么条件") == "转专业需要什么条件"
+    assert expand_query("竺可桢学院怎么样").count("竺可桢学院") == 1
+
+
+def test_strip_citations():
+    from core.llm import strip_citations
+
+    assert strip_citations("要求见[2]，另见[13]。") == "要求见，另见。"
+    assert strip_citations("2025年文件[2025]不受影响") == "2025年文件[2025]不受影响"
 
 
 def test_snippet():

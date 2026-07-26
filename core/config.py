@@ -24,6 +24,12 @@ MAX_CHUNK_CHARS = 350
 COVER_MIN_SCORE = 0.5
 COVER_MAX_EXTRA = 5  # 最多补几块（总片段数 <= TOP_K + COVER_MAX_EXTRA）
 
+# 入围下限：重排得分（sigmoid 后 0~1）低于此值的候选不进 prompt。库外问题所有
+# 候选都接近 0，全被过滤时检索返回空，由 build_context 给 LLM 显式"无据"信号，
+# 不再喂 top_k 条噪音。阈值以 tests/eval_retrieval.py 的负例最高分校准，宁低勿高
+# （漏放一条噪音的代价远小于误杀一条相关片段）。仅 reranker 可用时生效。
+PROMPT_MIN_SCORE = 0.15
+
 # HF 镜像默认值（下载 embedding / reranker 模型用），在 import transformers 前生效；
 # .env / 环境变量里显式配置的值优先
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
@@ -31,6 +37,14 @@ os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 def llm_model() -> str:
     return os.environ.get("LLM_MODEL", "deepseek-chat")
+
+
+def llm_model_light() -> str:
+    """辅助任务（问题改写、笔记压缩）用的轻量模型；不配则回落主模型。
+
+    这两个调用都阻塞在用户可感知的等待里（改写在检索前、压缩在答后 spinner），
+    换 mini 档主要省延迟，其次省费用。"""
+    return os.environ.get("LLM_MODEL_LIGHT") or llm_model()
 
 
 def rerank_model() -> str:
