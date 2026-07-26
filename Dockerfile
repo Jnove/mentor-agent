@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY core/ core/
 COPY scripts/ scripts/
+COPY ui/ ui/
+COPY .streamlit/ .streamlit/
 COPY app.py ingest.py KB_FORMAT.md ./
 
 # 模型缓存固定到 /root/.cache/huggingface，由 compose 挂成卷，换镜像不用重新下载
