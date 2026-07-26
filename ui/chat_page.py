@@ -108,61 +108,79 @@ def render_chat():
             for m in st.session_state.messages
         ]
         st.session_state.messages.append({"role": "user", "content": question})
+        ok = False
         with chat_box:
             with st.chat_message("user"):
                 st.markdown(question)
 
             with st.chat_message("assistant", avatar="🎓"):
-                with st.spinner("检索知识库中..."):
-                    search_q = rewrite_query(llm, history, question)
-                    hits = retriever.search(search_q)
-                # 检索详情随消息保存，重跑后历史循环里能原样重绘
-                retrieval = {
-                    "n": len(hits),
-                    "rewritten": search_q if search_q != question else "",
-                    "items": [f"- 《{h['title']}》— {snippet(h['text'])}" for h in hits],
-                }
-                with st.expander(f"检索到 {retrieval['n']} 条相关片段"):
-                    if retrieval["rewritten"]:
-                        st.caption(f"追问已改写为：{retrieval['rewritten']}")
-                    for line in retrieval["items"]:
-                        st.markdown(line)
+                answer_slot = None
+                try:
+                    with st.spinner("检索知识库中..."):
+                        search_q = rewrite_query(llm, history, question)
+                        hits = retriever.search(search_q)
+                    # 检索详情随消息保存，重跑后历史循环里能原样重绘
+                    retrieval = {
+                        "n": len(hits),
+                        "rewritten": search_q if search_q != question else "",
+                        "items": [f"- 《{h['title']}》— {snippet(h['text'])}" for h in hits],
+                    }
+                    with st.expander(f"检索到 {retrieval['n']} 条相关片段"):
+                        if retrieval["rewritten"]:
+                            st.caption(f"追问已改写为：{retrieval['rewritten']}")
+                        for line in retrieval["items"]:
+                            st.markdown(line)
 
-                prompt, cite_srcs = build_context(question, hits, retriever.catalog)
-                answer_slot = st.empty()  # 占位：流式结束后用重编号正文原地替换
-                streamed = answer_slot.write_stream(
-                    (chunk.choices[0].delta.content or "")
-                    for chunk in stream_answer(llm, history, prompt)
-                    if chunk.choices
-                )
-                # write_stream 返回 str | list；全是字符串块时归一成 str
-                answer = streamed if isinstance(streamed, str) else "".join(map(str, streamed))
+                    prompt, cite_srcs = build_context(question, hits, retriever.catalog)
+                    answer_slot = st.empty()  # 占位：流式结束后用重编号正文原地替换
+                    streamed = answer_slot.write_stream(stream_answer(llm, history, prompt))
+                    # write_stream 返回 str | list；全是字符串块时归一成 str
+                    answer = streamed if isinstance(streamed, str) else "".join(map(str, streamed))
 
-                # 引用重映射为按出现顺序的 [1][2][3]…；来源清单跟着正文引用走，
-                # LLM 没标注时退回"检索命中去重"
-                answer, cited = renumber_citations(answer, cite_srcs)
-                answer_slot.markdown(answer)
-                if cited:
-                    sources = [s for _, s in cited]
-                    caption = " · ".join(
-                        f"[{n}] [《{s['title']}》]({s['source_url']})" for n, s in cited
-                    )
-                else:
-                    sources = dedup_sources(hits)
-                    caption = " · ".join(
-                        f"[《{s['title']}》]({s['source_url']})" for s in sources
-                    )
-                st.caption("来源：" + caption)
+                    # 引用重映射为按出现顺序的 [1][2][3]…；来源清单跟着正文引用走，
+                    # LLM 没标注时退回"检索命中去重"
+                    answer, cited = renumber_citations(answer, cite_srcs)
+                    answer_slot.markdown(answer)
+                    if cited:
+                        sources = [s for _, s in cited]
+                        caption = " · ".join(
+                            f"[{n}] [《{s['title']}》]({s['source_url']})" for n, s in cited
+                        )
+                    else:
+                        sources = dedup_sources(hits)
+                        caption = " · ".join(
+                            f"[《{s['title']}》]({s['source_url']})" for s in sources
+                        )
+                    st.caption("来源：" + caption)
+                    ok = True
+                except Exception as e:
+                    # Streamlit 自身的控制流异常必须放行（当前版本继承 BaseException
+                    # 不会进这里，但旧版继承 Exception，防一手）
+                    if type(e).__module__.startswith("streamlit"):
+                        raise
+                    # 网关前置 Cloudflare、403 有前科（见 core/llm.py），主链路必须兜底：
+                    # 学生不能看到 traceback
+                    logging.exception("回答生成失败")
+                    if answer_slot is not None:
+                        answer_slot.empty()  # 清掉半截流式输出
+                    st.error("学长这会儿开小差了（网络或模型服务波动），请稍等片刻再问一次。")
+                finally:
+                    # 失败或被打断（流式中途用户提交新问题会触发 Streamlit 的
+                    # BaseException 级中断）都回滚本轮 user 消息，历史保持一问一答
+                    # 配平，否则下一轮 history 出现连续两条 user
+                    if not ok:
+                        st.session_state.messages.pop()
 
-        st.session_state.messages.append(
-            {"role": "assistant", "content": answer,
-             "sources_md": caption, "retrieval": retrieval}
-        )
-        with st.spinner("整理笔记中..."):
-            points = summarize_turn(llm, question, answer)
-        st.session_state.notes.append(
-            {"q": question, "points": points, "sources": sources}
-        )
+        if ok:
+            st.session_state.messages.append(
+                {"role": "assistant", "content": answer,
+                 "sources_md": caption, "retrieval": retrieval}
+            )
+            with st.spinner("整理笔记中..."):
+                points = summarize_turn(llm, question, answer)
+            st.session_state.notes.append(
+                {"q": question, "points": points, "sources": sources}
+            )
 
     # —— 左栏：学长笔记（后执行，包含本轮新笔记）——
     with left:

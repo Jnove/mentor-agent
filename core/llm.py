@@ -2,6 +2,7 @@
 import os
 import re
 
+import httpx
 from openai import OpenAI
 
 from core.config import llm_model
@@ -19,9 +20,17 @@ SYSTEM_PROMPT = """你是"学长组 Agent"，帮同学解答学校政策、通�
 
 
 def get_llm() -> OpenAI:
+    # 网关前置了 Cloudflare，有两道坎，都得绕：
+    # 1) 默认 UA "OpenAI/Python …" 被 WAF 判为爬虫 → 403 "Your request was blocked"，
+    #    改成自有标识放行。
+    # 2) 走本机代理（Clash 127.0.0.1:7897）出去时，出口 IP 触发 Cloudflare JS 质询
+    #    （"Just a moment…"）→ 403。trust_env=False 让 httpx 无视 *_PROXY 环境变量、
+    #    直连网关（网关本身直连可达，无需代理）。
     return OpenAI(
         api_key=os.environ["LLM_API_KEY"],
         base_url=os.environ.get("LLM_BASE_URL") or None,
+        default_headers={"User-Agent": "mentor-agent/1.0"},
+        http_client=httpx.Client(trust_env=False),
     )
 
 
@@ -62,7 +71,8 @@ def build_context(question: str, hits: list[dict],
     return prompt, sources
 
 
-_CITE = re.compile(r"\[(\d{1,2})\]")
+# 1-3 位编号：编号空间跨资料+全库目录，早已过百；[2025] 这类年份是 4 位，不会误伤
+_CITE = re.compile(r"\[(\d{1,3})\]")
 
 
 def renumber_citations(answer: str, sources: list[dict]) -> tuple[str, list[tuple[int, dict]]]:
@@ -88,8 +98,12 @@ def renumber_citations(answer: str, sources: list[dict]) -> tuple[str, list[tupl
 
 
 def stream_answer(llm, history: list[dict], prompt: str):
-    """流式生成回答。history 为不含当前问题的既往消息（只取最近几轮控制 token）。"""
-    return llm.chat.completions.create(
+    """流式产出回答的文本增量（str 生成器）。history 为不含当前问题的既往消息。
+
+    网关的流式收尾块 choices 为空（Sub2API 特性），在离网关最近的这层挡掉，
+    调用方不必知道 chunk 结构。
+    """
+    stream = llm.chat.completions.create(
         model=llm_model(),
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -98,6 +112,9 @@ def stream_answer(llm, history: list[dict], prompt: str):
         ],
         stream=True,
     )
+    for chunk in stream:
+        if chunk.choices and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
 
 
 def rewrite_query(llm, history: list[dict], question: str) -> str:

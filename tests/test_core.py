@@ -8,7 +8,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.chunking import split_by_headings
-from core.llm import build_context, renumber_citations
+from core.config import MAX_CHUNK_CHARS
+from core.llm import build_context, renumber_citations, stream_answer
 from core.notes import dedup_sources, notes_to_markdown, snippet
 from core.retrieval import pick_with_coverage, rrf_fuse, tokenize
 
@@ -40,6 +41,47 @@ def test_split_by_headings():
     # 超长块按段落再切
     long_doc = "## 长\n" + "\n\n".join("段" * 300 for _ in range(4))
     assert len(split_by_headings(long_doc)) > 1
+
+
+def test_split_long_section_keeps_heading():
+    # 超长小节切成多块后，首块带原标题，续块带「标题（续）」——不丢检索上下文
+    doc = "## 长\n" + "\n\n".join(f"第{i}段" + "内" * 300 for i in range(3))
+    chunks = split_by_headings(doc)
+    assert len(chunks) == 3, chunks
+    assert chunks[0].startswith("## 长\n第0段")
+    assert all(c.startswith("## 长（续）\n") for c in chunks[1:]), chunks
+
+
+def test_split_long_single_line_paragraph():
+    # 中文散文段在 markdown 里常整段一行（无换行），要能按句切开
+    doc = "## 段\n" + "这是政策说明的一句话。" * 80  # 880 字单行
+    chunks = split_by_headings(doc)
+    assert len(chunks) > 1, len(chunks)
+    # 标题在预算内先扣掉了，成块后不应明显超出 MAX_CHUNK_CHARS
+    assert all(len(c) <= MAX_CHUNK_CHARS + 20 for c in chunks), [len(c) for c in chunks]
+    assert chunks[1].startswith("## 段（续）\n")
+
+
+def test_split_single_line_section_not_dropped():
+    # 整节只有一行超长文本（爬虫脏数据常见），内容不能被静默丢弃
+    doc = "## 报销流程 " + "先去办事大厅提交材料。" * 40
+    chunks = split_by_headings(doc)
+    assert chunks and sum(len(c) for c in chunks) >= 400, chunks
+
+
+def test_split_long_table():
+    # 无空行的超长 markdown 表格（KB_FORMAT 要求的表格写法）按行硬切，
+    # 续块补表头两行，否则续块里的列没有含义
+    rows = "\n".join(f"| 8月{i}日 | 上午 | 训练内容第{i}项说明文字 |" for i in range(1, 40))
+    doc = "## 日程\n| 日期 | 时段 | 内容 |\n| --- | --- | --- |\n" + rows
+    chunks = split_by_headings(doc)
+    assert len(chunks) > 1, len(chunks)
+    for c in chunks[1:]:
+        assert c.startswith("## 日程（续）\n| 日期 | 时段 | 内容 |\n| --- | --- | --- |"), c
+    # 所有数据行都保留（表头/重叠行允许重复）
+    body = "\n".join(chunks)
+    for i in range(1, 40):
+        assert f"8月{i}日" in body
 
 
 def test_pick_with_coverage():
@@ -82,6 +124,20 @@ def test_build_context():
     assert "【知识库目录】" not in prompt2
 
 
+def test_stream_answer_filters_gateway_tail():
+    from types import SimpleNamespace as NS
+
+    # 网关流式收尾块 choices 为空、角色引导块 content 为 None，都要在 core 层挡掉
+    chunks = [
+        NS(choices=[NS(delta=NS(content=None))]),
+        NS(choices=[NS(delta=NS(content="你"))]),
+        NS(choices=[NS(delta=NS(content="好"))]),
+        NS(choices=[]),
+    ]
+    fake_llm = NS(chat=NS(completions=NS(create=lambda **kw: iter(chunks))))
+    assert "".join(stream_answer(fake_llm, [], "问")) == "你好"
+
+
 def test_renumber_citations():
     sources = [{"title": "A"}, {"title": "B"}, {"title": "C"}]
     # 跳号引用按首次出现顺序重映射为 1、2；重复引用共用同一新编号
@@ -94,6 +150,10 @@ def test_renumber_citations():
     # 完全没有标注 -> 原文不变、空列表（调用方兜底）
     text, cited = renumber_citations("没有标注", sources)
     assert text == "没有标注" and cited == []
+    # 三位数编号也要能重映射（编号空间跨资料+全库目录，早已过百）
+    many = [{"title": f"S{i}"} for i in range(120)]
+    text, cited = renumber_citations("依据[103]。", many)
+    assert text == "依据[1]。" and cited == [(1, many[102])]
 
 
 def test_snippet():
