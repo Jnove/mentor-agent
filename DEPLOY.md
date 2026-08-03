@@ -33,7 +33,9 @@ cp .env.example .env && vim .env      # 填 LLM_API_KEY 等，注意上面的 lo
 # 3. 构建并启动（首次构建拉 CPU 版 torch，约几分钟）
 docker compose up -d --build
 
-# 4. 建库（knowledge_base/ 里要先有文档）
+# 4. 先审计再建库（knowledge_base/ 里要先有文档）
+docker compose run --rm app python scripts/govern_kb.py
+# 只有 errors=0 才继续
 docker compose run --rm app python ingest.py
 
 # 5. 重启 app 让 BM25 索引看到新文档（索引建在内存里，ingest 不会自动生效）
@@ -60,7 +62,7 @@ docker compose run --rm app python scripts/make_admin.py 你的邮箱@zju.edu.cn
 
 | 场景 | 操作 |
 |------|------|
-| 数据组更新了文档 | 更新宿主机 `knowledge_base/` → `docker compose run --rm app python ingest.py` → `docker compose restart app` |
+| 数据组更新了文档 | 更新宿主机 `knowledge_base/` → 运行 `scripts/govern_kb.py` 审计 → `docker compose run --rm app python ingest.py` → 重启 app |
 | 换了 embedding 模型 | 同上，但 ingest 加 `--rebuild` 全量重建 |
 | 更新代码 | `git pull && docker compose up -d --build` |
 | 看日志 | `docker compose logs -f app` |
@@ -87,6 +89,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 
 cp .env.example .env && vim .env
+python scripts/govern_kb.py  # 必须 errors=0
 python ingest.py
 ```
 
@@ -120,7 +123,7 @@ sudo systemctl enable --now mentor-agent
 sudo systemctl status mentor-agent      # 看状态；日志：journalctl -u mentor-agent -f
 ```
 
-日常运维和 Docker 方式对应：更新文档后 `python ingest.py` +
+日常运维和 Docker 方式对应：更新文档后先运行 `python scripts/govern_kb.py`，`errors=0` 后再执行 `python ingest.py` +
 `sudo systemctl restart mentor-agent`；更新代码后 `git pull` + 重启。
 
 ---

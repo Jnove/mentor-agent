@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 import shutil
 import subprocess
@@ -25,6 +26,11 @@ def first_h1(text: str, fallback: str) -> str:
 
 def yaml_quote(text: str) -> str:
     return '"' + str(text).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def make_doc_id(title: str, url: str) -> str:
+    seed = f"{url.strip()}\n{title.strip()}".encode("utf-8")
+    return "kb-" + hashlib.sha256(seed).hexdigest()[:16]
 
 
 def git_output(repo: Path, *args: str) -> str:
@@ -233,6 +239,8 @@ def generate(repo: Path, mentor_root: Path) -> None:
         else:
             title_parts = [rel.split("/")[0], original_title]
         doc_title = "新生指引｜" + "｜".join(clean_title(p) for p in title_parts if clean_title(p))
+        doc_url = source_url(commit, rel)
+        doc_id = make_doc_id(doc_title, doc_url)
         publish_date = git_output(repo, "log", "-1", "--format=%ad", "--date=short", "--", str(src.relative_to(repo)))
         category = category_for(rel)
         tags = collect_tags(rel, original_title, breadcrumbs, raw)
@@ -240,16 +248,31 @@ def generate(repo: Path, mentor_root: Path) -> None:
         out = out_root / "docs" / rel
         out.parent.mkdir(parents=True, exist_ok=True)
         tag_line = "、".join(tags)
+        campus = "海宁国际校区" if rel.startswith("haining/") else "未明确"
         frontmatter = [
             "---",
+            "schema_version: 2",
+            f"doc_id: {doc_id}",
             f"title: {yaml_quote(doc_title)}",
-            f"source_url: {yaml_quote(source_url(commit, rel))}",
+            f"source_url: {yaml_quote(doc_url)}",
             f"source_org: {yaml_quote(SOURCE_ORG)}",
+            "source_type: student_guide",
+            "authority_level: student",
             f"publish_date: {publish_date}",
             f"category: {yaml_quote(category)}",
             "tags:",
             *[f"  - {yaml_quote(tag)}" for tag in tags],
             "valid: true",
+            "review_status: needs_review",
+            "last_checked_at: null",
+            "maintainer: unassigned",
+            "applies_to: [本科新生]",
+            f"campuses: [{campus}]",
+            "colleges: [未明确]",
+            "effective_from: null",
+            "effective_until: null",
+            "supersedes: []",
+            "superseded_by: []",
             "---",
             "",
         ]
@@ -267,17 +290,32 @@ def generate(repo: Path, mentor_root: Path) -> None:
         out.write_text("\n".join(frontmatter + intro) + raw.rstrip() + "\n", encoding="utf-8", newline="\n")
         rows.append((rel, doc_title, category, publish_date, len(tags), len(raw)))
 
+    manifest_title = "zju-welcome 导入清单"
     manifest_lines = [
         "---",
-        f"title: {yaml_quote('zju-welcome 导入清单')}",
+        "schema_version: 2",
+        f"doc_id: {make_doc_id(manifest_title, REPO_URL)}",
+        f"title: {yaml_quote(manifest_title)}",
         f"source_url: {yaml_quote(REPO_URL)}",
         f"source_org: {yaml_quote(SOURCE_ORG)}",
+        "source_type: student_guide",
+        "authority_level: student",
         "publish_date: 2026-07-09",
         f"category: {yaml_quote('FAQ')}",
         "tags:",
         f"  - {yaml_quote('导入清单')}",
         f"  - {yaml_quote('zju-welcome')}",
         "valid: false",
+        "review_status: rejected",
+        "last_checked_at: null",
+        "maintainer: unassigned",
+        "applies_to: [本科新生]",
+        "campuses: [未明确]",
+        "colleges: [未明确]",
+        "effective_from: null",
+        "effective_until: null",
+        "supersedes: []",
+        "superseded_by: []",
         "---",
         "",
         "# zju-welcome 导入清单",

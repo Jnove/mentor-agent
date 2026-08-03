@@ -5,13 +5,17 @@
 ```
 mentor-agent/
 ├── KB_FORMAT.md          # 知识库文档格式规范（数据组必读）
+├── QUESTION_FORMAT.md    # 真实问题收集与评测样本规范
+├── KB_GOVERNANCE_REPORT.md # 治理结果与人工复核队列
 ├── knowledge_base/       # 数据组往这里放 markdown 文档
 ├── ingest.py             # CLI：增量入库（--rebuild 全量重建）
+├── scripts/govern_kb.py  # schema 审计、迁移和精确去重
 ├── app.py                # 入口：登录门禁 + 页面导航
 ├── ui/                   # Streamlit 界面：问答 / 登录注册 / 用户管理
 ├── data/auth.db          # 用户库（自动创建，不进 git）
 ├── core/                 # 业务逻辑
 │   ├── config.py         #   路径/常量/env 统一入口
+│   ├── kb_schema.py      #   知识文档 schema v2 规范化与校验
 │   ├── chunking.py       #   文档切块
 │   ├── embeddings.py     #   embedding 后端（local/api 可切换）
 │   ├── retrieval.py      #   BM25+向量混合召回 → RRF 融合 → 交叉编码重排
@@ -34,7 +38,13 @@ pip install -r requirements.txt
 #### 2. 配置：复制 .env.example 为 .env，填入 API Key（Windows 直接复制粘贴改名即可）
 >    LLM_API_KEY / LLM_BASE_URL / LLM_MODEL，任何 OpenAI 兼容接口都行。.env 还需配置 AUTH_SECRET（生成方式见 .env.example）；SMTP 留空则验证码打印在控制台（开发模式）。
 
-#### 3. 数据组按 KB_FORMAT.md 往 knowledge_base/ 放文档
+#### 3. 数据组按 KB_FORMAT.md 往 knowledge_base/ 放文档，并先审计
+
+```bash
+python scripts/govern_kb.py
+```
+
+只有 `errors=0` 才能进入下一步；自动采集的资料默认是 `needs_review`，不能直接标为 `verified`。
 
 #### 4. 建库（增量：只处理新增/变更的文档；文档有更新就重跑）
 ```
@@ -82,7 +92,8 @@ LLM 在正文中用 [n] 标注每句话的来源；流式结束后按首次出�
 ## 一个月版本 TODO
 
 - [ ] 爬虫定时抓取通知 -> 自动生成规范 markdown -> 增量入库（已支持增量）
-- [ ] 评测脚本：问题集批量跑分，防改动回归
+- [x] 检索评测脚本：问题集批量跑分，防改动回归（`tests/eval_retrieval.py`）
+- [ ] 按 `QUESTION_FORMAT.md` 扩充真实问题并增加答案、引用和拒答评测
 - [x] 混合检索（BM25 + 向量）+ 重排，提升政策条款类问题命中率
 - [x] 多轮追问改写（检索前把"那时间呢？"改写成独立问题）
 - [ ] FastAPI 拆分后端接口，支持微信/QQ 机器人接入

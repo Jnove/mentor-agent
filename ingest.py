@@ -1,9 +1,9 @@
 """
-把 knowledge_base/ 下符合 KB_FORMAT.md 规范的 markdown 文档
+把 knowledge_base/ 下符合 KB_FORMAT.md v2 的 markdown 文档
 切块、向量化后写入本地 Chroma 向量库。
 
 增量入库：按文件内容 hash 判断，只处理新增/变更的文档；
-被删除或标记 valid: false 的文档，其旧块会从库里清除。
+被删除、标记 valid: false 或 rejected 的文档，其旧块会从库里清除。
 
 用法:
     python ingest.py               # 增量更新
@@ -17,63 +17,80 @@ import frontmatter
 
 from core.chunking import split_by_headings
 from core.config import COLLECTION, DB_DIR, KB_DIR, MAX_CHUNK_CHARS
+from core.kb_schema import validate_metadata
 
-REQUIRED = ["title", "source_url", "source_org", "publish_date", "category"]
-
-# 切块配置参与 content_hash：改块长/切块算法后，普通增量 ingest 也会重切全部文档，
-# 不依赖使用者记得 --rebuild（换 embedding 模型仍必须 --rebuild）。改切块算法时递增版本号。
+# 切块配置参与 content_hash：改块长/切块算法后，普通增量 ingest 也会重切全部文档。
 _CHUNK_STAMP = f"|chunker-v2:{MAX_CHUNK_CHARS}".encode()
 
 
 def load_docs():
-    """返回 [(path, post, content_hash)]，跳过缺字段/已失效的文档。"""
+    """返回有效文档；schema 错误会阻止整次入库，避免静默污染。"""
     docs = []
+    errors = []
     for path in sorted(KB_DIR.rglob("*.md")):
-        raw = path.read_bytes()
-        post = frontmatter.loads(raw.decode("utf-8"))
-        missing = [k for k in REQUIRED if not post.get(k)]
-        if missing:
-            print(f"[跳过] {path.name} 缺少字段: {missing}")
+        try:
+            raw = path.read_bytes()
+            post = frontmatter.loads(raw.decode("utf-8"))
+        except Exception as exc:
+            errors.append(f"{path}: 解析失败：{exc}")
             continue
-        if post.get("valid", True) is False:
+        result = validate_metadata(post.metadata)
+        if result.errors:
+            errors.append(f"{path}: {'; '.join(result.errors)}")
+            continue
+        for warning in result.warnings:
+            print(f"[警告] {path.name}: {warning}")
+        if post.get("valid") is False or post.get("review_status") == "rejected":
             print(f"[跳过] {path.name} 已标记失效")
             continue
         docs.append((path, post, hashlib.sha256(raw + _CHUNK_STAMP).hexdigest()))
+    if errors:
+        for error in errors:
+            print(f"[错误] {error}")
+        raise SystemExit(f"知识库校验失败：{len(errors)} 篇文档不符合 KB_FORMAT.md v2")
     return docs
 
 
-def make_chunks(path, post, content_hash):
-    """一篇文档 -> (ids, texts, metas)。
+def _list_text(post, key: str) -> str:
+    return "、".join(str(value) for value in post.get(key, []) if str(value).strip())
 
-    id 和 file 元数据都用相对 knowledge_base/ 的路径，
-    否则不同子文件夹下的同名文件会生成相同 id 互相覆盖。
-    """
+
+def make_chunks(path, post, content_hash):
+    """一篇文档 -> (ids, texts, metas)。"""
     rel = path.relative_to(KB_DIR).as_posix()
     ids, texts, metas = [], [], []
-    tags = post.get("tags", [])
-    if isinstance(tags, (list, tuple, set)):
-        tag_text = "、".join(str(t) for t in tags if str(t).strip())
-    else:
-        tag_text = str(tags).strip()
+    tag_text = _list_text(post, "tags")
     search_prefix = f"标题：{post['title']}\n分类：{post['category']}"
     if tag_text:
-        # 前缀和正文共享 embedding/reranker 的 512 token 窗口（见 config.MAX_CHUNK_CHARS），
-        # 个别文档标签长达 400 字会把正文挤出窗口；截到 100 字内最后一个完整标签，
-        # 完整标签仍在 meta 里
-        if len(tag_text) > 100:
-            tag_text = tag_text[:100].rsplit("、", 1)[0]
-        search_prefix += f"\n检索标签：{tag_text}"
+        # 前缀和正文共享 embedding/reranker 的 512 token 窗口；只把前 100 字标签入块。
+        search_tags = tag_text
+        if len(search_tags) > 100:
+            search_tags = search_tags[:100].rsplit("、", 1)[0]
+        search_prefix += f"\n检索标签：{search_tags}"
     for i, chunk in enumerate(split_by_headings(post.content)):
         ids.append(f"{rel}::{i}")
-        # 把标题拼进块里，检索时更容易命中
         texts.append(f"{search_prefix}\n\n{chunk}")
         metas.append({
+            "schema_version": int(post["schema_version"]),
+            "doc_id": str(post["doc_id"]),
             "title": str(post["title"]),
             "source_url": str(post["source_url"]),
             "source_org": str(post["source_org"]),
+            "source_type": str(post["source_type"]),
+            "authority_level": str(post["authority_level"]),
             "publish_date": str(post["publish_date"]),
             "category": str(post["category"]),
             "tags": tag_text,
+            "review_status": str(post["review_status"]),
+            "last_checked_at": str(post.get("last_checked_at") or ""),
+            "maintainer": str(post["maintainer"]),
+            "applies_to": _list_text(post, "applies_to"),
+            "campuses": _list_text(post, "campuses"),
+            "colleges": _list_text(post, "colleges"),
+            "effective_from": str(post.get("effective_from") or ""),
+            "effective_until": str(post.get("effective_until") or ""),
+            "supersedes": _list_text(post, "supersedes"),
+            "superseded_by": _list_text(post, "superseded_by"),
             "file": rel,
             "content_hash": content_hash,
         })
@@ -81,57 +98,78 @@ def make_chunks(path, post, content_hash):
 
 
 def main(rebuild: bool = False):
+    # 先完整解析和校验，--rebuild 也不能因坏文档提前销毁现有索引。
+    docs = load_docs()
     client = chromadb.PersistentClient(path=DB_DIR)
-    if rebuild:
-        try:
-            client.delete_collection(COLLECTION)
-        except Exception:
-            pass
     col = client.get_or_create_collection(COLLECTION, metadata={"hnsw:space": "cosine"})
 
-    # 现有库里每个文件的 hash 和块 id
     existing = col.get(include=["metadatas"])
     by_file: dict[str, dict] = {}
-    for id_, meta in zip(existing["ids"] or [], existing["metadatas"] or []):
-        meta = meta or {}
-        info = by_file.setdefault(str(meta.get("file", "")), {"hash": meta.get("content_hash"), "ids": []})
-        info["ids"].append(id_)
+    if not rebuild:
+        for id_, meta in zip(existing["ids"] or [], existing["metadatas"] or []):
+            meta = meta or {}
+            info = by_file.setdefault(str(meta.get("file", "")), {"hash": meta.get("content_hash"), "ids": []})
+            info["ids"].append(id_)
 
-    docs = load_docs()
     seen = set()
     add_ids, add_texts, add_metas = [], [], []
+    stale_ids: list[str] = []
+    messages: list[str] = []
     for path, post, content_hash in docs:
         rel = path.relative_to(KB_DIR).as_posix()
         seen.add(rel)
         prev = by_file.get(rel)
         if prev and prev["hash"] == content_hash:
-            continue  # 未变更
-        if prev:
-            col.delete(ids=prev["ids"])
-            print(f"[更新] {rel}")
-        else:
-            print(f"[新增] {rel}")
+            continue
         ids, texts, metas = make_chunks(path, post, content_hash)
+        if prev:
+            # upsert 成功后才清掉因新切块数量减少而残留的旧 ID。
+            stale_ids.extend(sorted(set(prev["ids"]) - set(ids)))
+            messages.append(f"[更新] {rel}")
+        else:
+            messages.append(f"[新增] {rel}")
         add_ids += ids
         add_texts += texts
         add_metas += metas
 
-    # 库里有、目录里没了（或被标失效/缺字段跳过）的文件 -> 清除旧块
+    removed_files: list[tuple[str, list[str]]] = []
     for fname, info in by_file.items():
         if fname and fname not in seen:
-            col.delete(ids=info["ids"])
-            print(f"[清除] {fname}（已删除或失效）")
+            removed_files.append((fname, info["ids"]))
+
+    # embedding 是最常见的外部失败点；必须在任何删除操作之前完成。
+    embeddings = None
+    if add_texts:
+        from core.embeddings import get_embedder
+
+        embeddings = get_embedder()(add_texts)
+
+    if rebuild:
+        try:
+            client.delete_collection(COLLECTION)
+        except Exception:
+            pass
+        col = client.get_or_create_collection(COLLECTION, metadata={"hnsw:space": "cosine"})
 
     if add_texts:
-        from core.embeddings import get_embedder  # 无变更时不加载模型，秒退
+        col.upsert(ids=add_ids, documents=add_texts, embeddings=embeddings, metadatas=add_metas)
+        for message in messages:
+            print(message)
+    if stale_ids:
+        col.delete(ids=stale_ids)
+    for fname, ids in removed_files:
+        col.delete(ids=ids)
+        print(f"[清除] {fname}（已删除、失效或拒绝）")
 
-        embed = get_embedder()
-        col.add(ids=add_ids, documents=add_texts, embeddings=embed(add_texts), metadatas=add_metas)
+    if add_texts:
         print(f"完成：新增/更新 {len(add_texts)} 块，库中共 {col.count()} 条 -> {DB_DIR}")
+        print("提示：app 正在运行的话需要重启，BM25 索引才能看到新文档")
+    elif rebuild:
+        print(f"完成：已重建空索引，库中共 {col.count()} 条")
+    elif removed_files or stale_ids:
+        print(f"完成：已清理旧块，库中共 {col.count()} 条")
     else:
         print(f"没有变更，库中共 {col.count()} 条")
-    if add_texts:
-        print("提示：app 正在运行的话需要重启，BM25 索引才能看到新文档")
 
 
 if __name__ == "__main__":
