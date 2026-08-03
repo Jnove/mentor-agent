@@ -1,0 +1,194 @@
+# 知识库来源注册表 v1
+# 每个来源 = 一条固定爬虫配置，供 scripts/kb_crawl.py 使用。
+# 字段说明见 scripts/kb_crawl.py 顶部注释。
+version: 1
+
+sources:
+  - name: libweb-guizhang
+    enabled: true
+    source_org: 浙江大学图书馆
+    authority_level: department
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/图书馆
+    base_url: https://libweb.zju.edu.cn
+    list_url: https://libweb.zju.edu.cn/55987/list.htm
+    detail_url_pattern: '^https://libweb\.zju\.edu\.cn/\d{4}/\d{4}/c55987a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: title_revision
+    normalize_headings: true
+    defaults:
+      tags: [图书馆]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: daily
+    notes: 规章制度栏目，WebPlus 系统，正文容器统一；即首批 14 篇政策来源
+
+  # 开放时间：各分馆开放时间表在分馆页正文里，不是详情页列表，
+  # 需用 urls 静态列表模式（待 kb_crawl 支持后启用）。
+  - name: libweb-open-hours
+    enabled: false
+    source_org: 浙江大学图书馆
+    authority_level: department
+    category: FAQ
+    source_type: official_guide
+    target_dir: FAQ/校园生活
+    base_url: https://libweb.zju.edu.cn
+    list_url: ''
+    detail_url_pattern: ''
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: table_footer_date
+    normalize_headings: false
+    defaults:
+      tags: [图书馆, 开放时间]
+      applies_to: [未明确]
+      campuses: [紫金港校区]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 待实现 urls 静态列表 + 表脚日期解析
+
+  # ---- 竺可桢学院（office.ckc.zju.edu.cn，WebPlus，.wp_articlecontent 一致）----
+  - name: ckc-zhaosheng
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/招生政策/竺可桢学院
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/34975/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c34975a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 招生选拔, 招生简章]
+      applies_to: [本科新生]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 新生选拔栏目，求是科学班/混合班/图灵班/新农科 招生简章；2026 版为新增
+
+  - name: ckc-qna
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: FAQ
+    source_type: official_guide
+    target_dir: FAQ/竺可桢学院
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/54293/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c54293a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, Q&A]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: Q&A 栏目，现有库内竺院 Q&A 的来源，抓取可刷新
+
+  - name: ckc-admin-files
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/竺可桢学院
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/35002/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c35002a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 行政文件, 实施细则]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 行政文件栏目，学生评价实施细则(2024修订)/荣誉证书授予实施细则(2023修订)/导师制管理办法等
+
+  # 计算机学院（cs.zju.edu.cn，WebPlus，/csen/ 前缀；列表页聚合多栏目）
+  - name: cs-zhaosheng
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/计算机学院
+    base_url: http://www.cs.zju.edu.cn
+    list_url: http://www.cs.zju.edu.cn/csen/27006/list.htm
+    detail_url_pattern: '^http://www\.cs\.zju\.edu\.cn/csen/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [计算机学院, 招生, 推免, 保研]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 招生信息栏目，推免/保研通知（对本科生保研规划有用）；站点以通知为主、缺规章制度栏目
+
+# 占位：下两个来源接通前先登记栏目，字段待确认。
+  - name: zdbk-undergrad-office
+    enabled: false
+    source_org: 本科生院
+    authority_level: department
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/学籍学位
+    base_url: https://zdbk.zju.edu.cn
+    list_url: ''
+    detail_url_pattern: ''
+    content_selector: ''
+    title_selector: ''
+    publish_rule: unknown
+    normalize_headings: true
+    defaults:
+      tags: [本科生院]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: daily
+    notes: 教务/学籍政策；栏目结构待调研
+
+  - name: xgb-student-affairs
+    enabled: false
+    source_org: 党委学生工作部
+    authority_level: department
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/学生管理
+    base_url: http://www.xgb.zju.edu.cn
+    list_url: ''
+    detail_url_pattern: ''
+    content_selector: ''
+    title_selector: ''
+    publish_rule: unknown
+    normalize_headings: true
+    defaults:
+      tags: [学工部, 学生管理]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: daily
+    notes: 奖助贷/违纪处分；栏目结构待调研

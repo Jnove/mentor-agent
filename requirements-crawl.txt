@@ -1,0 +1,5 @@
+# 知识库采集器（scripts/kb_crawl.py）额外依赖：在 requirements.txt 基础上追加。
+# 只在维护者机器/宿主机上装（爬虫不进应用镜像），装完还需跑一次：
+#   python -m playwright install chromium
+playwright>=1.40
+pypdf>=4.0
