@@ -146,6 +146,244 @@ sources:
     frequency: weekly
     notes: 招生信息栏目，推免/保研通知（对本科生保研规划有用）；站点以通知为主、缺规章制度栏目
 
+  # ---- 数学科学学院（math.zju.edu.cn，WebPlus）----
+  - name: math-gzzd
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/gzzd/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [数学科学学院, 规章制度]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 规章制度栏目；列表页直接有文章
+
+  - name: math-xjgl
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38080/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [数学科学学院, 学籍管理]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学籍管理栏目，文章量大，需分页支持（已知限制）
+
+  # ---- 理学部（css.zju.edu.cn，WebPlus）----
+  - name: css-wjhb
+    enabled: true
+    source_org: 理学部
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/理学部
+    base_url: http://www.css.zju.edu.cn
+    list_url: http://www.css.zju.edu.cn/wjhb/list.htm
+    detail_url_pattern: '^http://www\.css\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [理学部, 文件汇编]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [理学部]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 文件汇编栏目，含 PDF；gzzd(规章制度)栏目为子目录枢纽无文章
+
+  # ---- 外国语学院（sis.zju.edu.cn，WebPlus，/sischinese/ 前缀）----
+  - name: sis-xzwj
+    enabled: false
+    source_org: 外国语学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12556/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 行政文件]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 行政文件受学院权限控制（登录后仍提示无权限，非外国语学院账号无法查看），无法自动采集；需外院成员账号或人工
+
+  - name: sis-xjgl
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12578/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 学籍管理]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学籍管理栏目
+
+  # ---- 地球科学学院（gs.zju.edu.cn，WebPlus）----
+  - name: gs-tz
+    enabled: true
+    source_org: 地球科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/地球科学学院
+    base_url: http://gs.zju.edu.cn
+    list_url: http://gs.zju.edu.cn/35056/list.htm
+    detail_url_pattern: '^http://gs\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [地球科学学院, 通知公告]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [地球科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 通知公告栏目；规章制度/政策文件栏目为子目录枢纽无直接文章
+
+  # ---- 物理学院（physics.zju.edu.cn，WebPlus）----
+  - name: physics-tz
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/tz/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [物理学院, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 通知栏目；招生/办公指南栏目结构待确认
+
+  # ---- 管理学院（som.zju.edu.cn，WebPlus）----
+  - name: som-xxgg
+    enabled: true
+    source_org: 管理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/管理学院
+    base_url: http://www.som.zju.edu.cn
+    list_url: http://www.som.zju.edu.cn/xxgg/list.htm
+    detail_url_pattern: '^http://www\.som\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [管理学院, 消息公告]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [管理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 消息公告栏目；管院以新闻/公告为主，缺规章制度类栏目
+
+  # ---- 心理与行为科学系（psych.zju.edu.cn，WebPlus）----
+  - name: psych-bks
+    enabled: true
+    source_org: 心理与行为科学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/心理与行为科学系
+    base_url: http://www.psych.zju.edu.cn
+    list_url: http://www.psych.zju.edu.cn/27573/list.htm
+    detail_url_pattern: '^http://www\.psych\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [心理与行为科学系, 本科生教育]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [心理与行为科学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科生教育栏目
+
+  # ---- 化学系（office.chem.zju.edu.cn，WebPlus；内容在 office 子域）----
+  - name: chem-gzzd
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/化学系
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/92703/list.htm
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 规章制度]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 办公网规章制度栏目；主页在 www.chem.zju.edu.cn/chemcn
+
 # 占位：下两个来源接通前先登记栏目，字段待确认。
   - name: zdbk-undergrad-office
     enabled: false

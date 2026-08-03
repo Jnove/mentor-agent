@@ -182,9 +182,15 @@ def make_meta(source: dict, title: str, url: str, date: str) -> dict:
     }
 
 
+def _safe_filename_part(text: str) -> str:
+    """Windows 非法文件名字符（\\ / : * ? \" < > |）替换为下划线；标题里偶见（如"Nature | xxx"）。"""
+    cleaned = re.sub(r'[\\/:*?"<>|\s]+', "_", text).strip(" _")
+    return cleaned or "doc"
+
+
 def build_filename(meta: dict) -> str:
     year = meta["publish_date"][:4] if meta["publish_date"] != "unknown" else "未知"
-    return f"{meta['title']}_{meta['source_org']}_{year}.md"
+    return f"{_safe_filename_part(meta['title'])}_{_safe_filename_part(meta['source_org'])}_{year}.md"
 
 
 def build_body(title: str, md: str, source: dict, date: str) -> str:
@@ -219,6 +225,30 @@ def extract_pdf_text(pdf_url: str) -> str | None:
         return text.strip() or None
     except Exception:
         return None
+
+
+def _normalize_cookie(c: dict) -> dict | None:
+    """Cookie-Editor 扩展导出格式 → Playwright add_cookies 格式；必填缺失返回 None。"""
+    out: dict = {"name": str(c.get("name", "")), "value": str(c.get("value", ""))}
+    if c.get("url"):
+        out["url"] = c["url"]
+    else:
+        out["domain"] = c.get("domain", "")
+        out["path"] = c.get("path", "/")
+    expires = c.get("expirationDate") or c.get("expires")
+    if expires:
+        out["expires"] = int(expires)
+    if "httpOnly" in c:
+        out["httpOnly"] = bool(c["httpOnly"])
+    if "secure" in c:
+        out["secure"] = bool(c["secure"])
+    ss = c.get("sameSite")
+    if ss:
+        out["sameSite"] = {"no_restriction": "None", "lax": "Lax", "strict": "Strict"}.get(
+            str(ss).lower(), str(ss).capitalize())
+    if not out.get("name") or not (out.get("domain") or out.get("url")):
+        return None
+    return out
 
 
 # ---------------------------------------------------------------- 抓取
@@ -390,26 +420,63 @@ def main() -> None:
     ap.add_argument("--all", action="store_true", help="抓全部 enabled 来源")
     ap.add_argument("--dry-run", action="store_true", help="预演，不写暂存区")
     ap.add_argument("--limit", type=int, default=0, help="每来源最多抓多少详情页")
+    ap.add_argument("--headed", action="store_true",
+                    help="有头模式（SSO 登录用；默认 headless）")
+    ap.add_argument("--profile", default=str(ROOT / "data" / "kb_crawl_profile"),
+                    help="持久化浏览器 profile 目录（存 SSO cookie；data/ 下不进 git）")
+    ap.add_argument("--login", metavar="URL",
+                    help="SSO 登录：有头打开 URL，手动登录后 cookie 存进 profile，之后可 headless 复用")
+    ap.add_argument("--channel", default="",
+                    help="浏览器通道：chromium(默认)/msedge/chrome。有头登录 GUI 起不来时用 --channel msedge（系统 Edge）")
+    ap.add_argument("--import-cookies", metavar="FILE",
+                    help="从 JSON 文件导入 cookie（Cookie-Editor 扩展导出格式），注入 profile 后退出；绕过 SSO 反自动化登录")
     args = ap.parse_args()
-
-    sources = load_sources()
-    if args.source:
-        sources = [s for s in sources if s["name"] == args.source]
-    elif args.all:
-        sources = [s for s in sources if s.get("enabled")]
-    else:
-        ap.error("必须指定 --source <name> 或 --all")
 
     existing_index = index_existing_kb()
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        # --login 必须用有头浏览器（用户要看到并操作登录框）
+        headless = not args.headed and not args.login
+        # 降低被 SSO 反自动化检测拖慢/挂起的概率（登录页对自动化浏览器常见）
+        context = p.chromium.launch_persistent_context(
+            args.profile, headless=headless, channel=args.channel or None,
+            ignore_default_args=["--enable-automation"],
+            args=["--disable-blink-features=AutomationControlled"])
+        context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
+        if args.import_cookies:
+            with open(args.import_cookies, encoding="utf-8") as f:
+                raw = json.load(f)
+            cookies = [c for c in (_normalize_cookie(c) for c in raw) if c]
+            context.add_cookies(cookies)
+            context.close()
+            print(f"已导入 {len(cookies)}/{len(raw)} 条 cookie 到 {args.profile}，可 headless 抓取")
+            return
+
+        if args.login:
+            page = context.new_page()
+            page.goto(args.login, timeout=60000, wait_until="domcontentloaded")
+            print(f"请在打开的浏览器里完成登录（{args.login}），完成后回到此终端按回车…")
+            input()
+            print("登录完成，cookie 已保存到 profile。")
+            context.close()
+            return
+
+        sources = load_sources()
+        if args.source:
+            sources = [s for s in sources if s["name"] == args.source]
+        elif args.all:
+            sources = [s for s in sources if s.get("enabled")]
+        else:
+            ap.error("必须指定 --source <name> 或 --all")
+
+        page = context.new_page()
         for source in sources:
             out = crawl_source(page, source, args.limit, args.dry_run, existing_index)
             print(out["summary"])
-        browser.close()
+        context.close()
 
 
 if __name__ == "__main__":

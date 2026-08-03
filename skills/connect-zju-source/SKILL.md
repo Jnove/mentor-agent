@@ -25,7 +25,7 @@ description: >
 **前置**：`scripts/kb_crawl.py`、`scripts/sources.yaml` 已存在（本 skill 不重建它们）。
 爬虫依赖在 **`requirements-crawl.txt`**（playwright + pypdf，叠加于主 requirements；不进应用镜像）。
 在项目的 Python 环境里运行（venv 激活按平台：Windows `mentor/Scripts/activate`、macOS/Linux `mentor/bin/activate`）。
-装完后若浏览器未装，需先跑一次 `python -m playwright install chromium`。
+装完后若浏览器未装，需先跑一次 `python -m playwright install chromium`（**注意**：该命令装完整版 chromium + 独立 headless shell 两套；持久化上下文 `launch_persistent_context` 的 headless 模式用的是 headless shell，缺了会报 `Executable doesn't exist ...chromium_headless_shell`）。
 
 ## 为什么按这个顺序
 
@@ -137,6 +137,12 @@ python tests/eval_retrieval.py
 
 ## 常见坑速查（都踩过，别重踩）
 
+0. **SSO 保护来源**：部分栏目详情页会跳转浙大统一身份认证。**先分清是「登录问题」还是「权限问题」**：
+   - **权限问题**：登录成功但目标页提示"无权限访问"（如 sis 行政文件只对外国语学院成员开放）→ 换账号也无用，**自动采集不了**，在 sources.yaml 标 `enabled: false` + 注明原因，别浪费精力做登录。
+   - **登录问题**（非权限）：一次性登录 `python scripts/kb_crawl.py --login <列表URL> --channel msedge`（有头 Edge 登录 → 回车），cookie 存 `data/kb_crawl_profile/`（gitignored），之后 headless 复用；或从正常浏览器用 Cookie-Editor 导出 JSON 后 `--import-cookies <文件>` 注入。
+   - **有头 chromium 在某些 Windows 上起不来（`spawn UNKNOWN`，GUI 缺依赖）→ 用 `--channel msedge` 走系统 Edge**。
+   - 本机环境差异（如 PowerShell `os.path.exists` 对同一路径返回 False 而 bash 返回 True）会让某个终端完全跑不了 Playwright——**爬虫命令统一在 Git Bash 里跑**。
+
 1. **Windows 路径分隔符**：清理暂存文件时 `str(Path(x))` 出反斜杠、`as_posix()` 是正斜杠，两者比对永不相等会把刚写的文件当"过期"删掉。比对用 `Path(x).as_posix()`。
 2. **整轮全失败不清暂存**：站点挂掉时本轮 0 成功，绝不能清理上次暂存（保留待审材料）。kb_crawl 已内置该守卫。
 3. **别跨 Python/JS 传 DOM 对象**：`query_selector_all` 返回的 ElementHandle 不能当普通对象用；把转换逻辑整段放进浏览器内 `evaluate` 的 JS 里。
@@ -144,4 +150,6 @@ python tests/eval_retrieval.py
 5. **详情 URL 的栏目号 ≠ 列表路径**：`detail_url_pattern` 用详情 URL 里的 `c<栏目号>` 限定，防止抓到侧栏/其他栏目的文章。
 6. **标题变体**：同一政策在页面标题/手工文档间可能有组织前缀或多余空格 → doc_id 不同。这是暂存审核要归并的"近重复"，不是 bug，别在爬虫里硬凑。
 7. **元数据保守**：`publish_date` 只认"标题修订日 → URL 日期 → unknown"；`applies_to/campuses/colleges` 不确定写 `未明确`。绝不拿抓取当天冒充发布日期。
+8. **Windows 非法文件名字符**：标题里可能出现 `| : * ? " < >` 等（如 physics 的 "Nature | xxx"），写文件名前必须替换，否则写入直接 OSError。`build_filename` 已内置 `_safe_filename_part`。
+9. **同源站点容器不一致**：同一站点不同栏目正文容器可能不同（如 sis 行政文件页是 PDF 附件页，无 `.wp_articlecontent`）。探索时别只看一个样本页就定 `content_selector`。
 
