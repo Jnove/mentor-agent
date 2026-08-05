@@ -1,7 +1,7 @@
-"""生成知识库暂存区审核清单：data/kb_staging/review_checklist.md
+"""生成知识库暂存区审核清单：knowledge_base/staging/review_checklist.md
 
 读取各来源 _manifest.json + 暂存文档 frontmatter，套用下方人工维护的审核要点，
-输出给负责人逐条勾选的清单。清单落在 data/ 下（gitignore），不进 git。
+输出给负责人逐条勾选的清单。清单随 staging 一起进 private repo。
 
 用法: python scripts/kb_review_checklist.py
 """

@@ -6,8 +6,8 @@
     python scripts/kb_crawl.py --source libweb-guizhang --limit 2 # 限制详情页数（调试）
 
 输出:
-    data/kb_staging/<source_name>/<target_dir>/<title>_<org>_<年>.md
-    data/kb_staging/<source_name>/_manifest.json
+    knowledge_base/staging/<source_name>/<target_dir>/<title>_<org>_<年>.md
+    knowledge_base/staging/<source_name>/_manifest.json
 
 原则:
     - 只负责抓取与机械性元数据；无法确定的字段一律 未明确 / unknown / needs_review。

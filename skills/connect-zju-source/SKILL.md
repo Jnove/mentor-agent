@@ -19,7 +19,7 @@ description: >
 把一个新学院/部处网站接入 `scripts/kb_crawl.py` 的自动采集流程，产出登记在
 `scripts/sources.yaml` 的来源配置 + 一批通过校验的暂存文档。
 
-**产出**：`sources.yaml` 新增一条 enabled 来源 + `data/kb_staging/<name>/` 下
+**产出**：`sources.yaml` 新增一条 enabled 来源 + `knowledge_base/staging/<name>/` 下
 通过 schema 校验的文档 + 一份给负责人的审核要点。
 
 **前置**：`scripts/kb_crawl.py`、`scripts/sources.yaml` 已存在（本 skill 不重建它们）。
@@ -97,7 +97,7 @@ python scripts/kb_crawl.py --source <name>
 ```
 
 **检查清单（抓完必查）**：
-- manifest：`data/kb_staging/<name>/_manifest.json` 的 `errors` 应为空。
+- manifest：`knowledge_base/staging/<name>/_manifest.json` 的 `errors` 应为空。
 - 暂存文档：随机抽查 2-3 篇正文，确认无乱码、表格保留、附件链接带完整域名。
 - schema：`python scripts/govern_kb.py`（查 real KB 不受影响）或逐个 `validate_metadata`。
 - **空壳检查**：正文 <100 字的要警惕——若来源是 PDF 型栏目且没抽出正文，是抽取失败需排查；若本来就短（如名单通知）则正常。
@@ -105,8 +105,8 @@ python scripts/kb_crawl.py --source <name>
 ## 第五步：审核要点与收尾
 
 暂存区文档一律 `needs_review`，交给负责人前列出审核要点。**运行
-`python scripts/kb_review_checklist.py` 自动生成 `data/kb_staging/review_checklist.md`
-**（含人工维护的审核要点 + 通用启发式，按来源分表；清单在 data/ 下，不进 git），
+`python scripts/kb_review_checklist.py` 自动生成 `knowledge_base/staging/review_checklist.md`
+**（含人工维护的审核要点 + 通用启发式，按来源分表；清单随 staging 一起进 private repo），
 把这份清单连同新增/更新的来源名交给负责人。以下要点也是生成清单的素材：
 
 - **近重复**：manifest 里 `status: 新增` 但标题像已有文档的（组织前缀/多余空格/拆分的 part1-part2），是"标题变体"，需归并到同一 doc，不是重复新增。
@@ -116,9 +116,9 @@ python scripts/kb_crawl.py --source <name>
 
 ### 审核清单使用方法
 
-1. **生成**：`python scripts/kb_review_checklist.py` → 产出 `data/kb_staging/review_checklist.md`（每次抓取后重跑即可）。
+1. **生成**：`python scripts/kb_review_checklist.py` → 产出 `knowledge_base/staging/review_checklist.md`（每次抓取后重跑即可）。
 2. **逐条过**：清单按来源分表，每篇一行的"审核要点"是给负责人的建议。负责人对每条做出决定：`valid: true/false`、是否归并近重复、是否重分类（通知/政策/剔除）、是否给旧版标 `supersedes`。
-3. **把决定写回暂存文档**：编辑对应 `data/kb_staging/<source>/<...>.md` 的 frontmatter（改 `valid`、`supersedes`、`category` 等），不要只在清单里打勾——清单只是工作台，暂存文档才是发布源。
+3. **把决定写回暂存文档**：编辑对应 `knowledge_base/staging/<source>/<...>.md` 的 frontmatter（改 `valid`、`supersedes`、`category` 等），不要只在清单里打勾——清单只是工作台，暂存文档才是发布源。
 4. **发布**：决定做完后跑下方发布链路。发布后暂存区即可清空。
 5. **标 verified**：已核验的文档把 `review_status` 改为 `verified`，并填 `last_checked_at` + `maintainer`（KB_FORMAT 要求）。
 
