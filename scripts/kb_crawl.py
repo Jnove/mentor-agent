@@ -23,6 +23,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import frontmatter
 import yaml
@@ -259,7 +260,8 @@ def load_sources(path: Path = SOURCES_FILE) -> list[dict]:
     sources = data.get("sources", [])
     bad = []
     for s in sources:
-        if not s.get("enabled"):  # 禁用的占位条目不强制字段齐全
+        # crawler: bst 来源由 scripts/bst_crawl.py（HTTP 采集）负责，不走 WebPlus 浏览器抓取
+        if not s.get("enabled") or s.get("crawler") == "bst":
             continue
         missing = [k for k in REQUIRED_SOURCE_FIELDS if not s.get(k)]
         if missing:
@@ -270,11 +272,34 @@ def load_sources(path: Path = SOURCES_FILE) -> list[dict]:
 
 
 def discover_detail_urls(page, source: dict) -> list[str]:
-    page.goto(source["list_url"], timeout=30000, wait_until="domcontentloaded")
-    page.wait_for_timeout(1500)
+    """按 list_url 抓详情链接；可选 max_pages 翻页（WebPlus listN.htm 约定）。
+
+    第 1 页为 list_url 本身，第 N 页为同目录 listN.htm（list.htm -> list2.htm）。
+    某页抓不到详情链接即提前停止（已翻到底或该页结构异常），不报错。
+    """
+    max_pages = int(source.get("max_pages", 1))
     pat = re.compile(source["detail_url_pattern"])
-    hrefs = page.eval_on_selector_all("a", "els => els.map(e => e.href || '')")
-    urls = [h for h in hrefs if pat.match(h)]
+    m = re.match(r"^(.*)[.](htm|psp)$", source["list_url"])
+    paged_stem, paged_ext = (m.group(1), m.group(2)) if m else (None, None)
+    urls: list[str] = []
+    for page_no in range(1, max_pages + 1):
+        if page_no == 1:
+            list_url = source["list_url"]
+        elif paged_stem:
+            list_url = f"{paged_stem}{page_no}.{paged_ext}"
+        else:
+            break
+        try:
+            page.goto(list_url, timeout=30000, wait_until="domcontentloaded")
+            page.wait_for_timeout(1500)
+            hrefs = page.eval_on_selector_all("a", "els => els.map(e => e.href || '')")
+        except Exception as exc:
+            print(f"  列表页 {list_url} 失败：{exc}")
+            break
+        page_urls = [h for h in hrefs if pat.match(h)]
+        if not page_urls:
+            break
+        urls.extend(page_urls)
     return list(dict.fromkeys(urls))  # 去重保序
 
 
@@ -414,6 +439,155 @@ def _format_summary(name: str, results: dict, errors: list[str], dry_run: bool) 
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------- 覆盖检查
+# 目的：枚举站点首页导航的全部栏目，与 sources.yaml 已注册的 detail_url_pattern
+# 比对，把「漏注册栏目」显性化，避免像 ckc 二次选拔那样整栏未收录还不自知。
+
+_NAV_LIST_RE = re.compile(r"list[.](htm|psp)$")              # WebPlus 栏目入口
+_DETAIL_C_NUM = re.compile(r"/c([0-9]+)a[0-9]+/page[.]htm$")  # 详情 URL 里的栏目 c 号
+_REG_C_NUM = re.compile(r"c([0-9]+)a")
+
+
+def _site_netloc(url: str) -> str:
+    return urlparse(url).netloc.lower()
+
+
+def _same_site(href: str, netloc: str) -> bool:
+    # 各栏目列表页都带综合服务网「更多」链接（跨域 c 号），不按 netloc 过滤会污染 c 号集合
+    return urlparse(href).netloc.lower() == netloc
+
+
+def _registered_columns(sources: list[dict], base_url: str) -> tuple[set[str], bool, list[dict]]:
+    """该站点已注册的 c 号集合、是否含通用规则、站点内来源条目。"""
+    netloc = _site_netloc(base_url)
+    specific: set[str] = set()
+    site_sources: list[dict] = []
+    generic = False
+    for s in sources:
+        if not s.get("enabled") or not s.get("base_url"):
+            continue
+        if _site_netloc(str(s["base_url"])) != netloc:
+            continue
+        site_sources.append(s)
+        pat = s.get("detail_url_pattern") or ""
+        m = _REG_C_NUM.search(pat)
+        if m and m.group(1).isdigit():
+            specific.add(m.group(1))
+        elif pat:
+            generic = True  # 形如 c\d+a\d+ 的通用规则：视为该站点整站覆盖
+    return specific, generic, site_sources
+
+
+def _nav_columns(page, netloc: str) -> list[dict]:
+    """站点首页导航里同站的 list.htm / list.psp 栏目链接（标题、地址），去重按标题排序。"""
+    links = page.eval_on_selector_all(
+        "a",
+        "els => els.map(e => ({t:(e.innerText||'').trim(), h:e.href||''})).filter(x => x.t)",
+    )
+    seen: set[str] = set()
+    cols: list[dict] = []
+    for ln in links:
+        href = ln["h"]
+        if not _same_site(href, netloc) or not _NAV_LIST_RE.search(href):
+            continue
+        if href in seen:
+            continue
+        seen.add(href)
+        cols.append({"title": ln["t"], "href": href})
+    cols.sort(key=lambda c: c["title"])
+    return cols
+
+
+def _column_cnums(page, netloc: str) -> set[str]:
+    """当前列表页里同站全部详情链接的栏目 c 号集合（WebPlus 一个栏目一个 c 号）。"""
+    hrefs = page.eval_on_selector_all("a", "els => els.map(e => e.href || '')")
+    return {m.group(1) for h in hrefs
+            if _same_site(h, netloc) if (m := _DETAIL_C_NUM.search(h))}
+
+
+def check_coverage(page, base_url: str, sources: list[dict]) -> dict:
+    """对一个站点做覆盖检查：导航栏目逐个采样 c 号与注册比对，再核验每个注册来源。"""
+    netloc = _site_netloc(base_url)
+    specific, generic, site_sources = _registered_columns(sources, base_url)
+
+    page.goto(base_url, timeout=30000, wait_until="domcontentloaded")
+    page.wait_for_timeout(1500)
+    columns: list[dict] = []
+    seen_cnums: set[str] = set()
+    for col in _nav_columns(page, netloc):
+        try:
+            page.goto(col["href"], timeout=30000, wait_until="domcontentloaded")
+            page.wait_for_timeout(1200)
+            cnums = _column_cnums(page, netloc)
+        except Exception as exc:
+            columns.append({**col, "status": "failed", "note": str(exc)[:80]})
+            continue
+        seen_cnums |= cnums
+        if generic:
+            status, note = "covered", "通用规则（整站覆盖）"
+        elif not cnums:
+            status, note = "no_details", "列表页无详情链接"
+        elif cnums <= specific:
+            status, note = "covered", "c号 " + " ".join(sorted(cnums))
+        else:
+            status, note = "uncovered", "漏注册 c号：" + " ".join(sorted(cnums - specific))
+        columns.append({**col, "status": status, "note": note, "cnums": sorted(cnums)})
+
+    verified: list[dict] = []
+    verified_cnums: set[str] = set()
+    for s in site_sources:
+        name = s["name"]
+        exp = _REG_C_NUM.search(s.get("detail_url_pattern") or "")
+        if not s.get("list_url"):
+            verified.append({"name": name, "status": "skipped", "note": "未配 list_url"})
+            continue
+        try:
+            page.goto(s["list_url"], timeout=30000, wait_until="domcontentloaded")
+            page.wait_for_timeout(1200)
+            cnums = _column_cnums(page, netloc)
+        except Exception as exc:
+            verified.append({"name": name, "status": "failed", "note": str(exc)[:80]})
+            continue
+        if exp and exp.group(1).isdigit():
+            if cnums and exp.group(1) in cnums:
+                verified_cnums.add(exp.group(1))
+                verified.append({"name": name, "status": "ok", "note": "校验 c" + exp.group(1)})
+            elif cnums:
+                verified.append({"name": name, "status": "mismatch", "note": "列表详情 c号 " + " ".join(sorted(cnums)) + "，预期 c" + exp.group(1)})
+            else:
+                verified.append({"name": name, "status": "empty", "note": "预期 c" + exp.group(1) + "，列表无详情链接"})
+        else:
+            note = "通用规则，采样 " + " ".join(sorted(cnums)) if cnums else "通用规则，列表无详情链接"
+            verified.append({"name": name, "status": "ok", "note": note})
+
+    missing = sorted(specific - seen_cnums - verified_cnums)
+    return {
+        "base_url": base_url, "netloc": netloc, "generic": generic,
+        "specific": sorted(specific), "columns": columns,
+        "verified": verified, "missing": missing,
+    }
+
+
+def _coverage_report(data: dict) -> str:
+    head = "== 覆盖检查：" + data["netloc"]
+    if data["generic"]:
+        head += "（通用规则，整站覆盖）"
+    else:
+        head += "（注册 c号：" + (" ".join(data["specific"]) if data["specific"] else "无") + "）"
+    lines = [head]
+    lines.append("   导航栏目 " + str(len(data["columns"])) + " 个：")
+    for c in data["columns"]:
+        lines.append("   [" + c["status"] + "] " + c["title"] + " — " + c["note"])
+    lines.append("   已注册来源 " + str(len(data["verified"])) + " 个：")
+    for v in data["verified"]:
+        lines.append("   [" + v["status"] + "] " + v["name"] + " — " + v["note"])
+    if data["missing"]:
+        lines.append("   ⚠ 注册了却在导航和列表页都看不到的 c号：" + " ".join(data["missing"]))
+    else:
+        lines.append("   未发现「注册了却消失」的 c号。")
+    return "\n".join(lines)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="知识库来源采集器")
     ap.add_argument("--source", help="只抓指定来源（sources.yaml 的 name）")
@@ -430,6 +604,10 @@ def main() -> None:
                     help="浏览器通道：chromium(默认)/msedge/chrome。有头登录 GUI 起不来时用 --channel msedge（系统 Edge）")
     ap.add_argument("--import-cookies", metavar="FILE",
                     help="从 JSON 文件导入 cookie（Cookie-Editor 扩展导出格式），注入 profile 后退出；绕过 SSO 反自动化登录")
+    ap.add_argument("--check-coverage", action="store_true",
+                    help="覆盖检查：枚举站点导航栏目并与 sources.yaml 注册比对，暴露漏注册栏目")
+    ap.add_argument("--site", metavar="URL", default="",
+                    help="覆盖检查范围：只查该 base_url；缺省检查全部已注册站点")
     args = ap.parse_args()
 
     existing_index = index_existing_kb()
@@ -465,6 +643,16 @@ def main() -> None:
             return
 
         sources = load_sources()
+        if args.check_coverage:
+            bases = [args.site] if args.site else sorted(
+                {str(s["base_url"]) for s in sources
+                 if s.get("enabled") and s.get("base_url")})
+            page = context.new_page()
+            for base in bases:
+                print(_coverage_report(check_coverage(page, base, sources)))
+                print()
+            context.close()
+            return
         if args.source:
             sources = [s for s in sources if s["name"] == args.source]
         elif args.all:

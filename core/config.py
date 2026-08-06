@@ -30,6 +30,13 @@ COVER_MAX_EXTRA = 5  # 最多补几块（总片段数 <= TOP_K + COVER_MAX_EXTRA
 # （漏放一条噪音的代价远小于误杀一条相关片段）。仅 reranker 可用时生效。
 PROMPT_MIN_SCORE = 0.15
 
+# 浙大百事通（s.zju.edu.cn）实时兜底检索：RAG 无命中或最高重排分低于阈值时，
+# 调 core.bst 检索常见问题 + 校园资讯补进 prompt（离线快照 bst_crawl 之外的第二路）。
+# .env 设 BST_FALLBACK=off 可关闭（如校内网络不可达 s.zju.edu.cn 时）。
+BST_FALLBACK = os.environ.get("BST_FALLBACK", "on").strip().lower() not in ("off", "none", "0", "false")
+BST_FALLBACK_SCORE = 0.3  # RAG 最高重排分低于此值才触发兜底（低于阈值说明候选不相关）
+BST_TOP_N = 4             # 兜底最多取几条（FAQ 优先，不足补资讯）
+
 # HF 镜像默认值（下载 embedding / reranker 模型用），在 import transformers 前生效；
 # .env / 环境变量里显式配置的值优先
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")

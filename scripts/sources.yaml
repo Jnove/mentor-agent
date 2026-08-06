@@ -122,7 +122,475 @@ sources:
     frequency: weekly
     notes: 行政文件栏目，学生评价实施细则(2024修订)/荣誉证书授予实施细则(2023修订)/导师制管理办法等
 
-  # 计算机学院（cs.zju.edu.cn，WebPlus，/csen/ 前缀；列表页聚合多栏目）
+  # ---- 竺可桢学院：招生选拔与教育教学（第二批接入，2026-08 覆盖检查补充）----
+  - name: ckc-erxuan
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/二次选拔
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/ecxb/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c54288a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 二次选拔, 招生选拔]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 招生选拔-二次选拔栏目（混合班/交叉创新/求是科学班等二次选拔与报名通知）
+
+  - name: ckc-bbgt
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/本博贯通
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/bbgtxb/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c79418a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 本博贯通, 招生选拔]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 招生选拔-本博贯通选拔栏目（本科直博贯通培养选拔通知）
+
+  - name: ckc-fuxiu
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/辅修班
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/jcfhbxb/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c54306a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 辅修班, 招生选拔]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 招生选拔-辅修班选拔栏目（基础学科辅修班/荣誉辅修选拔通知）
+
+  - name: ckc-pyfa
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/竺可桢学院/培养方案
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/pyfa/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c79420a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 培养方案]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 教育教学-培养方案栏目（各平台/方向培养方案，长期有效文档）
+
+  - name: ckc-gztz
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/gztz/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c54289a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 工作通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 教育教学-工作通知栏目（教学安排、选课、考试等时效性通知）
+
+  - name: ckc-pingjiang
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/评奖资助
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/34986/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c34986a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 评奖, 资助]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生事务-评奖资助栏目（奖学金/助学金/荣誉称号评选通知）
+
+  - name: ckc-jiaoliu
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/国际交流
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/54298/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c54298a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 国际交流]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生事务-交流通知栏目（海外交流项目通知；部分正文为 PDF iframe）
+
+  # ---- 竺可桢学院：第三批接入（2026-08 覆盖检查补充：下载专区/招生选拔最新通知/学生党团/学生事务）----
+  - name: ckc-jyxx-xiazai
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 通知/竺可桢学院/教育教学-下载专区
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/34981/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c34981a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 下载专区, 模板, 申请表]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: monthly
+    notes: 教育教学-下载专区栏目（证明/申请模板等下载文件；正文保留附件链接，可直接回给同学）
+
+  - name: ckc-zhaosheng-latest
+    enabled: true
+    is_aggregate: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/招生选拔-最新通知
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/zxtz_80337/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c80337a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 招生选拔, 最新通知, 强基交叉专项]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 招生选拔-最新通知栏目（强基交叉专项/复合型人才特色班等）；顶层 80324 与此为同一文章流，不重复登记。最新汇总栏目，与垂直栏目（本博贯通/二次选拔/辅修）重复挂载同一通知，查重时让位给垂直栏目，仅保留唯一内容
+
+  - name: ckc-dangtuan-latest
+    enabled: true
+    is_aggregate: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生党团-最新通知
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/34994/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c34994a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生党团, 最新通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生党团-最新通知栏目（团组织关系转接等）。最新汇总栏目，与垂直栏目（基础团务/志愿服务/学生党建）重复挂载同一通知，查重时让位给垂直栏目，仅保留唯一内容
+
+  - name: ckc-dangtuan-dangjian
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生党团-学生党建
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/34995/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c34995a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生党团, 学生党建, 党员发展]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生党团-学生党建栏目（拟发展党员公示等）
+
+  - name: ckc-dangtuan-tuanwu
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生党团-基础团务
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/34996/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c34996a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生党团, 基础团务, 团费]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生党团-基础团务栏目（智慧团建/团费收缴等）
+
+  - name: ckc-dangtuan-org
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生党团-学生组织
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/xszz/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c79444a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生党团, 学生组织, 换届]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生党团-学生组织栏目（学生组织换届/招募等）
+
+  - name: ckc-dangtuan-volunteer
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生党团-志愿服务
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/zyfw/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c79443a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生党团, 志愿服务, 志愿者]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生党团-志愿服务栏目（志愿者招募等）
+
+  - name: ckc-dangtuan-social
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生党团-社会实践
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/shsj/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c79442a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生党团, 社会实践]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生党团-社会实践栏目（暑期社会实践立项/结项等）
+
+  - name: ckc-xssw-download
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 通知/竺可桢学院/学生事务-下载专区
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/xsxzzq/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c69149a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 下载专区, 模板, 申请表]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: monthly
+    notes: 学生事务-下载专区栏目（场地借用申请表等模板；正文保留附件链接）
+
+  - name: ckc-xssw-innovation
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生事务-创新创业
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/cxcy/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c79449a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生事务, 创新创业]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生事务-创新创业栏目（蒲公英大赛等）
+
+  - name: ckc-xssw-mental
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生事务-心理健康
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/34988/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c34988a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生事务, 心理健康]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生事务-心理健康栏目（心理测评/咨询通知）
+
+  - name: ckc-xssw-latest
+    enabled: true
+    is_aggregate: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生事务-最新通知
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/zxtz/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c35233a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生事务, 最新通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生事务-最新通知栏目（班团评议等）；注意 c 号为 c35233（非 349xx/79xxx 系列）。最新汇总栏目，与垂直栏目（评奖资助等）重复挂载同一通知，查重时让位给垂直栏目，仅保留唯一内容
+
+  - name: ckc-xssw-quality
+    enabled: true
+    source_org: 竺可桢学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/竺可桢学院/学生事务-综合素质
+    base_url: http://office.ckc.zju.edu.cn
+    list_url: http://office.ckc.zju.edu.cn/zhsz/list.htm
+    detail_url_pattern: '^http://office\.ckc\.zju\.edu\.cn/\d{4}/\d{4}/c79448a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [竺可桢学院, 学生事务, 综合素质, SQTP]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [竺可桢学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生事务-综合素质栏目（SQTP 项目等）
+
+  # 计算机学院中文网（www.cs.zju.edu.cn/csen，WebPlus，对外宣传站）
+  # 学生日常通知（本科教育/就业/校园/学生交流）正文为空，均发在办公网 cspo（已注册）；
+  # 本站内容集中在招生信息及其子栏目 + 学科竞赛。分页：list.htm -> list2.htm..list4.htm。
+  # 详情链接 c 号 == 栏目 c 号，按 c 号锚定 pattern 以剔除导航残留（研究生导师 c27006a2421689）。
   - name: cs-zhaosheng
     enabled: true
     source_org: 计算机科学与技术学院
@@ -132,43 +600,141 @@ sources:
     target_dir: 通知/招生通知/计算机学院
     base_url: http://www.cs.zju.edu.cn
     list_url: http://www.cs.zju.edu.cn/csen/27006/list.htm
-    detail_url_pattern: '^http://www\.cs\.zju\.edu\.cn/csen/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    detail_url_pattern: '^https?://www\.cs\.zju\.edu\.cn/csen/\d{4}/\d{4}/c27006a\d+/page\.htm$'
     content_selector: '.wp_articlecontent'
     title_selector: ''
     publish_rule: url_date
     normalize_headings: true
+    max_pages: 4
     defaults:
-      tags: [计算机学院, 招生, 推免, 保研]
-      applies_to: [未明确]
+      tags: [计算机学院, 招生, 推免, 保研, 导师]
+      applies_to: [本科生, 研究生]
       campuses: [未明确]
       colleges: [计算机科学与技术学院]
     maintainer: unassigned
     frequency: weekly
-    notes: 招生信息栏目，推免/保研通知（对本科生保研规划有用）；站点以通知为主、缺规章制度栏目
+    notes: 招生信息栏目，4 页 43 篇；推免/保研/导师信息（本科生保研规划与研究生选导有用）
+
+  - name: cs-zhaosheng-ms
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/计算机学院/硕士研究生
+    base_url: http://www.cs.zju.edu.cn
+    list_url: http://www.cs.zju.edu.cn/csen/27010/list.htm
+    detail_url_pattern: '^https?://www\.cs\.zju\.edu\.cn/csen/\d{4}/\d{4}/c27010a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [计算机学院, 硕士, 复试, 招生]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 硕士招生子栏目，4 页 48 篇；复试公告/上机考试/录取方案/学科专业调整，研究生问答核心
+
+  - name: cs-zhaosheng-boshi
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/计算机学院/博士与实习
+    base_url: http://www.cs.zju.edu.cn
+    list_url: http://www.cs.zju.edu.cn/csen/27011/list.htm
+    detail_url_pattern: '^https?://www\.cs\.zju\.edu\.cn/csen/\d{4}/\d{4}/c27011a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [计算机学院, 博士, 招生, 实习]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 博士招生与实习子栏目，4 页 54 篇；博士综合考核/暑期实习/非全日制，研究生问答核心
+
+  - name: cs-xkjs
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学科竞赛/计算机学院
+    base_url: http://www.cs.zju.edu.cn
+    list_url: http://www.cs.zju.edu.cn/csen/xkjs/list.htm
+    detail_url_pattern: '^https?://www\.cs\.zju\.edu\.cn/csen/\d{4}/\d{4}/c62747a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [计算机学院, 学科竞赛, NOIP, CSP]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学科竞赛栏目，2 页 18 篇；浙江省 NOIP/CSP-J/S 通知（中学信息学竞赛，对学生问答价值一般，量小成本低）
 
   # ---- 数学科学学院（math.zju.edu.cn，WebPlus）----
-  - name: math-gzzd
+  - name: math-bkgg
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/教学通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38077/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38077a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 8
+    defaults:
+      tags: [数学科学学院, 本科通知, 转专业, 学制]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科信息公告，82 篇；延长学制、毕业自审、微辅修、转专业等教务通知（8 页截断）
+
+  - name: math-pyfa
     enabled: true
     source_org: 数学科学学院
     authority_level: college
     category: 政策
     source_type: official_policy
-    target_dir: 政策/数学科学学院
+    target_dir: 政策/培养方案/数学科学学院
     base_url: http://www.math.zju.edu.cn
-    list_url: http://www.math.zju.edu.cn/gzzd/list.htm
-    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    list_url: http://www.math.zju.edu.cn/38078/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38078a\d+/page\.htm$'
     content_selector: '.wp_articlecontent'
     title_selector: ''
     publish_rule: url_date
     normalize_headings: true
+    max_pages: 2
     defaults:
-      tags: [数学科学学院, 规章制度]
-      applies_to: [未明确]
+      tags: [数学科学学院, 培养方案]
+      applies_to: [本科生]
       campuses: [未明确]
       colleges: [数学科学学院]
     maintainer: unassigned
     frequency: weekly
-    notes: 规章制度栏目；列表页直接有文章
+    notes: 各年级本科培养方案（2020-2024 级），8 篇；学生常问培养方案，全量
 
   - name: math-xjgl
     enabled: true
@@ -179,19 +745,308 @@ sources:
     target_dir: 政策/数学科学学院
     base_url: http://www.math.zju.edu.cn
     list_url: http://www.math.zju.edu.cn/38080/list.htm
-    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c84604a\d+/page\.htm$'
     content_selector: '.wp_articlecontent'
     title_selector: ''
     publish_rule: url_date
     normalize_headings: true
+    max_pages: 2
     defaults:
-      tags: [数学科学学院, 学籍管理]
-      applies_to: [未明确]
+      tags: [数学科学学院, 学籍管理, 主修专业确认]
+      applies_to: [本科生]
       campuses: [未明确]
       colleges: [数学科学学院]
     maintainer: unassigned
     frequency: weekly
-    notes: 学籍管理栏目，文章量大，需分页支持（已知限制）
+    notes: 学籍管理（主修专业确认），15 篇；与 zxzyqr 栏目内容完全重复，仅注册本栏目
+
+  - name: math-sj
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/教学通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38081/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c84598a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [数学科学学院, 实践教学, 毕业论文]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 实践教学（毕业论文/答辩），21 篇；与 bylw 栏目内容完全重复，仅注册本栏目
+
+  - name: math-zc
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38082/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38082a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [数学科学学院, 政策文件, 推免, 强基计划]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科政策文件（推免条例、强基计划、求是班遴选），15 篇；与 tmgztz 无重叠
+
+  - name: math-gzzd
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/gzzd/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c56079a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 1
+    defaults:
+      tags: [数学科学学院, 规章制度, 助教]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 规章制度栏目，3 篇（助教管理、研究生学籍/教学管理细则）
+
+  - name: math-zzy
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/转专业通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/zzy/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c84601a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [数学科学学院, 转专业, 强基班]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 转专业修读，34 篇；转专业通知、拟录取名单、求是班/强基班选拔
+
+  - name: math-tmgz
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/tmgztz/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c84603a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 1
+    defaults:
+      tags: [数学科学学院, 推免, 免试研究生]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 免试研究生推荐，10 篇；推免名单公示、推荐条例
+
+  - name: math-yjsgg
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38086/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38086a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 8
+    defaults:
+      tags: [数学科学学院, 研究生, 报到注册, 教材]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生信息公告，134 篇；报到注册、课程教材、退学处理等（8 页截断）
+
+  - name: math-zs
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38087/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38087a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 8
+    defaults:
+      tags: [数学科学学院, 招生, 硕士研究生, 博士研究生, 夏令营]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生招生工作，91 篇；硕士/博士招生、港澳台招生、夏令营、硕博连读（8 页截断）
+
+  - name: math-py
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38088/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38088a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [数学科学学院, 研究生, 培养, 资格考试, 中期考核]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生培养工作，30 篇；博士生资格考试、中期考核
+
+  - name: math-byxw
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38090/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38090a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [数学科学学院, 研究生, 毕业, 学位]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生毕业学位，38 篇；毕业审核、学位申请、答辩须知
+
+  - name: math-yjszc
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38091/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38091a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [数学科学学院, 研究生, 政策文件, 延期毕业]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生政策文件，13 篇；研究生手册、延期毕业规范、学位申请实施办法
+
+  - name: math-pjpy
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学工通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38100/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38100a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 6
+    defaults:
+      tags: [数学科学学院, 评奖评优, 奖学金]
+      applies_to: [本科生, 研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 评奖评优，288 篇；奖学金、优秀毕业生评选，多为公示名单（6 页截断）
+
+  - name: math-zz
+    enabled: true
+    source_org: 数学科学学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学工通知/数学科学学院
+    base_url: http://www.math.zju.edu.cn
+    list_url: http://www.math.zju.edu.cn/38101/list.htm
+    detail_url_pattern: '^http://www\.math\.zju\.edu\.cn/\d{4}/\d{4}/c38101a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 8
+    defaults:
+      tags: [数学科学学院, 资助, 助学金, 困难补助]
+      applies_to: [本科生, 研究生]
+      campuses: [未明确]
+      colleges: [数学科学学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生资助，113 篇；助学金申请、困难补助、资助对象认定（8 页截断）
 
   # ---- 理学部（css.zju.edu.cn，WebPlus）----
   - name: css-wjhb
@@ -216,6 +1071,30 @@ sources:
     maintainer: unassigned
     frequency: weekly
     notes: 文件汇编栏目，含 PDF；gzzd(规章制度)栏目为子目录枢纽无文章
+
+  - name: css-wlxzx
+    enabled: true
+    source_org: 理学部
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/理学部
+    base_url: http://www.css.zju.edu.cn
+    list_url: http://www.css.zju.edu.cn/wlxwwwjcrcpyzx/list.htm
+    max_pages: 5
+    detail_url_pattern: '^http://www\.css\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [理学部, 理学X, 交叉人才培养]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [理学部]
+    maintainer: unassigned
+    frequency: weekly
+    notes: “理学+X”多学科交叉人才培养中心栏目，研究生培养专项；历年招生简章/评选公示/活动通知需甄别时效性
 
   # ---- 外国语学院（sis.zju.edu.cn，WebPlus，/sischinese/ 前缀）----
   - name: sis-xzwj
@@ -263,6 +1142,222 @@ sources:
     maintainer: unassigned
     frequency: weekly
     notes: 学籍管理栏目
+
+  - name: sis-bk-tz
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/教学通知/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12577/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 本科教学, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科最新通知栏目；详情页混用 WebPlus(.wp_articlecontent) 与公众号(#js_content) 两种模板，用混合选择器
+
+  - name: sis-yjs-tz
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12584/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 研究生, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生最新通知栏目
+
+  - name: sis-yjs-zs
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12585/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 研究生, 招生]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生招生信息栏目；历年招生简章/复试安排需甄别时效性
+
+  - name: sis-yjs-jw
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12587/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 研究生, 教学教务]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生教学教务栏目
+
+  - name: sis-yjs-xw
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12588/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 研究生, 学位管理]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生学位管理栏目；学位申请/答辩细则等政策性内容
+
+  - name: sis-sz-tz
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学工通知/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12593/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 学生, 思政]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生思政最新通知栏目
+
+  - name: sis-pjpy
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学工通知/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12596/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 评奖评优]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 评奖评优栏目；历年评选公示需甄别时效性
+
+  - name: sis-zizhu
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学工通知/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12597/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 学生资助]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生资助栏目；含补助/名单类受身份认证保护的文章，抓取时自动跳过
+
+  - name: sis-gjjl
+    max_pages: 3
+    enabled: true
+    source_org: 外国语学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/国际交流/外国语学院
+    base_url: http://www.sis.zju.edu.cn
+    list_url: http://www.sis.zju.edu.cn/sischinese/12610/list.htm
+    detail_url_pattern: '^http://www\.sis\.zju\.edu\.cn/sischinese/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent, #js_content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [外国语学院, 国际交流]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [外国语学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 国际交流栏目；含受身份认证保护的项目/名单文章，抓取时自动跳过
 
   # ---- 地球科学学院（gs.zju.edu.cn，WebPlus）----
   - name: gs-tz
@@ -384,6 +1479,90 @@ sources:
     frequency: weekly
     notes: office 办公网规章制度栏目；主页在 www.chem.zju.edu.cn/chemcn
 
+# ================================================================
+# 浙大百事通检索平台（s.zju.edu.cn）——校级统一检索（聚合发布，非 WebPlus 站点）
+# 与其它来源不同：无需登录，走公开搜索接口（服务端渲染 HTML，UTF-8），
+# 由 scripts/bst_crawl.py 采集（并发 8，实测 40 并发全秒回；kb_crawl.py 的
+# --all 会跳过 crawler: bst 来源）。平台不产内容，是全校各处室已发布内容的
+# 聚合检索；常用接口：
+#   GET /search/faq.do?words=&pageNo=&pageSize=   常见问题（约 2409 条，问答/电话/部门）
+#   GET /search/workGuide.do?words=...            办事指南（约 669 条）
+#   GET /search/normFile.do?words=...             规范性文件（约 747 条，发文号/施行日期/PDF 全文）
+#   GET /search/info.do?words=...                 网页资讯（全校网站索引，仅供实时检索不作快照）
+# 已知现象：站点缓存分层导致办事指南条目在部分请求下带「点击详情」外链文本，
+# 采集脚本已做两轮合并 + 标题噪声清理；运行时兜底检索见 core/bst.py。
+  - name: bst-faq
+    enabled: true
+    crawler: bst
+    source_org: 浙江大学
+    authority_level: university
+    category: FAQ
+    source_type: official_guide
+    target_dir: FAQ/百事通/常见问题
+    base_url: https://s.zju.edu.cn
+    list_url: ''
+    detail_url_pattern: ''
+    content_selector: ''
+    title_selector: ''
+    publish_rule: unknown
+    normalize_headings: true
+    defaults:
+      tags: [百事通, 常见问题]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 常见问题库全量枚举（问答/咨询电话/受理部门/科室结构化；答案过长站点截断）。一条 FAQ 一篇文章，审核时可批量核验后发布
+
+  - name: bst-work-guide
+    enabled: true
+    crawler: bst
+    source_org: 浙江大学
+    authority_level: university
+    category: FAQ
+    source_type: official_guide
+    target_dir: FAQ/百事通/办事指南
+    base_url: https://s.zju.edu.cn
+    list_url: ''
+    detail_url_pattern: ''
+    content_selector: ''
+    title_selector: ''
+    publish_rule: unknown
+    normalize_headings: true
+    defaults:
+      tags: [百事通, 办事指南]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 办事指南全量枚举（事项标题/受理时间/咨询电话/监督电话/受理机构/受理地方）
+
+  - name: bst-norm-file
+    enabled: true
+    crawler: bst
+    source_org: 浙江大学
+    authority_level: university
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/百事通/规范性文件
+    base_url: https://s.zju.edu.cn
+    list_url: ''
+    detail_url_pattern: ''
+    content_selector: ''
+    title_selector: ''
+    publish_rule: unknown
+    normalize_headings: true
+    defaults:
+      tags: [百事通, 规范性文件]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 规范性文件库全量枚举（发文号/施行日期/分类；正文为 PDF，用 viewpdf.do 抽取，失败保留下载链接占位）
+
 # 占位：下两个来源接通前先登记栏目，字段待确认。
   - name: zdbk-undergrad-office
     enabled: false
@@ -430,3 +1609,378 @@ sources:
     maintainer: unassigned
     frequency: daily
     notes: 奖助贷/违纪处分；栏目结构待调研
+
+# ================================================================
+# 浙江大学综合服务网（zhfw.zju.edu.cn）——校级综合服务门户（WebPlus 系统）
+# 爬取范围：列表页第一页可见文章（列表无分页，已知限制）。
+# 详情页 URL 含真实文章日期（/YYYY/MMDD/c<栏目>a<文章>/page.htm），合成 URL 会返回
+# 「No Permission」，必须用列表页真实链接；爬虫 discover_detail_urls 正是从列表页取。
+# 已排查栏目（不注册）：
+#   - 新闻类不接：c504 学术讲座(xs)、c5344 院系新闻(yxxw)、c20204 教学科研(jxky)
+#   - 教职工向不接：c4908 会议通知(zhfw_hytz)、c4906 科学研究(zhfw_kxyj)、
+#     c4909 招聘信息(zhfw_zpxx)、c4907 校务管理(zhfw_xwgl)
+#   - 与 c4901 高重叠不重复注册：c5072 行政文件(zhfw_xzwj)、c5071 党委文件(zhfw_dwwj)、
+#     c4953 通知公告(zhfw_tzgg)
+#   - 图片/导航/黄页/系统栏：csgg、dtqh_10670、11946/11947/11948、pc、zt、
+#     11950 系统公告、4900 热点专题、ygxw_63417 阳光校务、bmhy 部门黄页
+# 严禁注册：部门黄页 c46965（历史禁用）。
+  - name: zhfw-jyjx
+    enabled: true
+    source_org: 浙江大学综合服务网
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/综合服务网/教育教学
+    base_url: http://zhfw.zju.edu.cn
+    list_url: http://zhfw.zju.edu.cn/zhfw_jyjx/list.htm
+    detail_url_pattern: '^https?://zhfw\.zju\.edu\.cn/\d{4}/\d{4}/c4905a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [浙江大学, 综合服务网, 教育教学, 选课, 竞赛]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 教育教学栏目：选课/外语类大赛/研究生助管/教材结算/毕业典礼等，校级发布，全校通用
+
+  - name: zhfw-xxwj
+    enabled: true
+    source_org: 浙江大学综合服务网
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/综合服务网/最新文件
+    base_url: http://zhfw.zju.edu.cn
+    list_url: http://zhfw.zju.edu.cn/zhfw_xxwj/list.htm
+    detail_url_pattern: '^https?://zhfw\.zju\.edu\.cn/\d{4}/\d{4}/c4901a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [浙江大学, 综合服务网, 最新文件, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 最新文件栏目：优秀毕业生名单/学位授予/军训/新生入学等。与 c5072 行政文件、c5071 党委文件、
+         c4953 通知公告高度重叠（同 a 号），不重复注册
+
+  - name: zhfw-qttt
+    enabled: true
+    source_org: 浙江大学综合服务网
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/综合服务网/其他
+    base_url: http://zhfw.zju.edu.cn
+    list_url: http://zhfw.zju.edu.cn/zhfw_qttt/list.htm
+    detail_url_pattern: '^https?://zhfw\.zju\.edu\.cn/\d{4}/\d{4}/c4910a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [浙江大学, 综合服务网, 其他, 后勤]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 其他栏目：停水停电/班车/图书馆开放/奖助学金等生活服务通知，对同学实用价值高
+
+  - name: zhfw-zdts
+    enabled: true
+    source_org: 浙江大学综合服务网
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/综合服务网/最新动态
+    base_url: http://zhfw.zju.edu.cn
+    list_url: http://zhfw.zju.edu.cn/zhfw_zdts/list.htm
+    detail_url_pattern: '^https?://zhfw\.zju\.edu\.cn/\d{4}/\d{4}/c4903a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [浙江大学, 综合服务网, 最新动态, 后勤]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 最新动态栏目：施工提示/暑期后勤巴士班车/实验室安全等，与 c4910 有同文（同 a 号），查重自动处理
+
+  - name: zhfw-gsgg
+    enabled: true
+    source_org: 浙江大学综合服务网
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/综合服务网/公示公告
+    base_url: http://zhfw.zju.edu.cn
+    list_url: http://zhfw.zju.edu.cn/zhfw_gsgg/list.htm
+    detail_url_pattern: '^https?://zhfw\.zju\.edu\.cn/\d{4}/\d{4}/c11987a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [浙江大学, 综合服务网, 公示公告]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 公示公告栏目：以招租/成果转化公示为主，偶有学生相关（如宿舍洗衣服务遴选结果），量不大
+
+  - name: zhfw-jsgx
+    enabled: true
+    is_aggregate: true
+    source_org: 浙江大学综合服务网
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/综合服务网/即时更新
+    base_url: http://zhfw.zju.edu.cn
+    list_url: http://zhfw.zju.edu.cn/zhfw_jsgx/list.htm
+    detail_url_pattern: '^https?://zhfw\.zju\.edu\.cn/\d{4}/\d{4}/c5074a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [浙江大学, 综合服务网, 即时更新]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 即时更新栏目为全校最新文章聚合（12 篇中 10 篇在垂直栏目找到）。最新汇总栏目，
+         与垂直栏目重复挂载同一通知，查重时让位给垂直栏目，仅保留唯一内容
+
+  # ---- 计算机科学与技术学院办公网（cspo.zju.edu.cn，WebPlus，扁平栏目 URL）----
+  # 与原中文网 www.cs.zju.edu.cn/csen 同源不同站，内容互补（办公网覆盖本科+研究生）。
+  # 分页格式：list.htm -> list2.htm（list_2.htm 与带父路径前缀均 301）。
+  # 各栏目列表页详情链接 c 号 == 栏目 c 号（除 webvpn 跨域链接，被域名锚定过滤），按 c 号锚定。
+  - name: cspo-zhaosheng
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/计算机学院/招生
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27171/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27171a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [计算机学院, 招生, 推免, 硕博连读, 保研]
+      applies_to: [本科生, 研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 招生栏目，量小（2 页）精华：硕博连读/推免/博士招生简章；研究生招生为主，对本科生保研规划也有用
+
+  - name: cspo-xjpeiyang
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/计算机学院/学籍培养
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27172/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27172a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [计算机学院, 学籍, 培养, 中期考核]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学籍与培养栏目（研究生），量小精华：中期考核/学籍政策/培养方案
+
+  - name: cspo-xuewei
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 政策
+    source_type: official_policy
+    target_dir: 政策/计算机学院/学位
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27173/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27173a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [计算机学院, 学位, 学位授予, 答辩]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学位栏目（研究生），量小精华：学位授予/答辩安排
+
+  - name: cspo-bks-notice
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/计算机学院/本科生通知
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/29529/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c29529a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 6
+    defaults:
+      tags: [计算机学院, 本科生, 通知]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科生最新通知，高价值大栏目（64 页）：转专业/选课/毕业设计/教材；max_pages 抓最近约一年半
+
+  - name: cspo-yjs-notice
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/计算机学院/研究生通知
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27169/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27169a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 6
+    defaults:
+      tags: [计算机学院, 研究生, 通知, 保研, 推免]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生最新通知，覆盖保研/推免/复试；发布稀疏（首页跨 2020-2026），max_pages 覆盖多年
+
+  - name: cspo-pingyou
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/计算机学院/评奖评优
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27179/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27183a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [计算机学院, 评奖评优, 奖学金, 评优]
+      applies_to: [本科生, 研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 评奖评优栏目（奖学金/优秀评选）；27179=27183 重复挂载，list 用 27179、文章 c 号是 27183
+
+  - name: cspo-jiuye
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/计算机学院/就业
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27197/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27197a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [计算机学院, 就业, 招聘]
+      applies_to: [研究生, 本科生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 就业工作栏目（招聘/就业通知），10 页
+
+  - name: cspo-jiaoliu
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/计算机学院/学生交流
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27214/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27221a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [计算机学院, 学生交流, 交换, 交流]
+      applies_to: [本科生, 研究生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生国际交流栏目（交换/交流项目）；27214=27221 重复挂载，list 用 27214、文章 c 号是 27221
+
+  - name: cspo-jingsai
+    enabled: true
+    source_org: 计算机科学与技术学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/计算机学院/学科竞赛
+    base_url: http://cspo.zju.edu.cn
+    list_url: http://cspo.zju.edu.cn/27228/list.htm
+    detail_url_pattern: '^https?://cspo\.zju\.edu\.cn/\d{4}/\d{4}/c27228a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [计算机学院, 学科竞赛, 竞赛]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [计算机科学与技术学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学科竞赛栏目（ACM/CTF 等竞赛通知）；11 条/页

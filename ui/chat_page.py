@@ -20,7 +20,8 @@ import streamlit as st
 # 内部 catch，不影响运行，只是把 traceback 刷进控制台。屏蔽这一条 warning 即可。
 logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ERROR)
 
-from core.config import COLLECTION, DB_DIR
+from core.config import BST_FALLBACK, BST_FALLBACK_SCORE, BST_TOP_N, COLLECTION, DB_DIR
+from core import bst
 from core.embeddings import get_embedder
 from core.llm import (
     build_context, get_llm, renumber_citations, rewrite_query, stream_answer,
@@ -129,19 +130,45 @@ def render_chat():
                             search_q,
                             carry_ids=st.session_state.get("last_hit_ids", ()),
                         )
+                        # 百事通实时兜底：知识库无命中或最高分过低（库外问题）时，
+                        # 实时检索全校常见问题 + 网页资讯补进 prompt。结果结构与
+                        # RAG hits 兼容（title/source_url/… 齐全），build_context 原样处理
+                        fallback = False
+                        if BST_FALLBACK:
+                            top = max((h.get("score") or 0) for h in hits) if hits else 0
+                            if not hits or top < BST_FALLBACK_SCORE:
+                                bst_hits = bst.bst_search(search_q, top_n=BST_TOP_N)
+                                if bst_hits:
+                                    hits = [*hits, *bst_hits]
+                                    fallback = True
                     # 检索详情随消息保存，重跑后历史循环里能原样重绘。
                     # 展示的是真实检索词：含改写和黑话扩展（search 内部同一函数），
                     # 否则扩展词把意外文档拉进结果时从 UI 上查不出原因
                     shown_q = expand_query(search_q)
                     retrieval = {
                         "n": len(hits),
+                        "bst": fallback,
+                        "bst_n": len(bst_hits) if fallback else 0,
                         "rewritten": shown_q if shown_q != question else "",
-                        "items": [f"- 《{h['title']}》— {snippet(h['text'])}" for h in hits],
+                        "items": [
+                            (
+                                f"- 《{h['title']}》〔百事通 · {h['from_bst']}〕— {snippet(h['text'])}"
+                                if h.get("from_bst") else f"- 《{h['title']}》— {snippet(h['text'])}"
+                            )
+                            for h in hits
+                        ],
                     }
-                    exp_title = (
-                        f"检索到 {retrieval['n']} 条相关片段"
-                        if retrieval["n"] else "未检索到相关片段"
-                    )
+                    if fallback:
+                        exp_title = (
+                            f"知识库未命中，百事通实时补充 {retrieval['bst_n']} 条"
+                            if not hits or all(h.get("from_bst") for h in hits)
+                            else f"知识库命中 {retrieval['n'] - retrieval['bst_n']} 条 + 百事通补充 {retrieval['bst_n']} 条"
+                        )
+                    else:
+                        exp_title = (
+                            f"检索到 {retrieval['n']} 条相关片段"
+                            if retrieval["n"] else "未检索到相关片段"
+                        )
                     with st.expander(exp_title):
                         if retrieval["rewritten"]:
                             st.caption(f"实际检索词：{retrieval['rewritten']}")
