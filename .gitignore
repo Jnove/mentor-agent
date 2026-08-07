@@ -10,6 +10,7 @@ mentor/
 docs/*
 !docs/superpowers/
 !docs/PROJECT_TODO.md
+!docs/ISSUES.md
 pyrightconfig.json
 
 # 真实政策文档不进仓库（版权/时效/敏感信息考虑），只保留虚构示例保证 clone 即可跑
