@@ -6,7 +6,7 @@ logs/
 __pycache__/
 mentor/
 .claude/
-# docs/ 整体不进仓库，但设计文档（specs）例外
+# docs/ 整体不进仓库，但设计文档（specs）和TODO 例外
 docs/*
 !docs/superpowers/
 !docs/PROJECT_TODO.md
