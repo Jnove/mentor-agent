@@ -87,6 +87,10 @@ description: >
 - `publish_date`：标题修订日 > 详情 URL 日期 > `unknown`；**绝不拿抓取日期冒充**。
 - 无法确定的字段写 `未明确` / `unknown` / `needs_review`，不脑补。
 
+**登记完跑一遍覆盖检查**：`python scripts/kb_crawl.py --check-coverage --site <base_url>`
+枚举站点导航全部栏目与注册比对，把漏注册栏目显性化（先要注册成具体 `c<栏目号>`；
+`c\d+a\d+` 通用规则的站点会整站视为已覆盖，检查意义有限）。
+
 ## 第四步：抓取验证
 
 先 dry-run 看提取质量，再完整抓取：
@@ -152,4 +156,5 @@ python tests/eval_retrieval.py
 7. **元数据保守**：`publish_date` 只认"标题修订日 → URL 日期 → unknown"；`applies_to/campuses/colleges` 不确定写 `未明确`。绝不拿抓取当天冒充发布日期。
 8. **Windows 非法文件名字符**：标题里可能出现 `| : * ? " < >` 等（如 physics 的 "Nature | xxx"），写文件名前必须替换，否则写入直接 OSError。`build_filename` 已内置 `_safe_filename_part`。
 9. **同源站点容器不一致**：同一站点不同栏目正文容器可能不同（如 sis 行政文件页是 PDF 附件页，无 `.wp_articlecontent`）。探索时别只看一个样本页就定 `content_selector`。
+10. **覆盖检查只对「具体 c 号」敏感**：`detail_url_pattern` 写成 `c\d+a\d+` 通用规则的站点（cs/math/css 等）会被整站视为已覆盖，`--check-coverage` 不会暴露漏栏目。给新栏目登记时尽量用具体 `c<栏目号>`，覆盖检查才有意义。
 

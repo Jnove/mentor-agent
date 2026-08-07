@@ -152,7 +152,15 @@ def main(rebuild: bool = False):
         col = client.get_or_create_collection(COLLECTION, metadata={"hnsw:space": "cosine"})
 
     if add_texts:
-        col.upsert(ids=add_ids, documents=add_texts, embeddings=embeddings, metadatas=add_metas)
+        # Chroma 默认 max_batch_size=5461；大批量增量（如一次接入数百篇）会超限，需分批 upsert。
+        _BATCH = 1000
+        for i in range(0, len(add_ids), _BATCH):
+            col.upsert(
+                ids=add_ids[i : i + _BATCH],
+                documents=add_texts[i : i + _BATCH],
+                embeddings=embeddings[i : i + _BATCH],
+                metadatas=add_metas[i : i + _BATCH],
+            )
         for message in messages:
             print(message)
     if stale_ids:

@@ -1385,7 +1385,7 @@ sources:
 
   # ---- 物理学院（physics.zju.edu.cn，WebPlus）----
   - name: physics-tz
-    enabled: true
+    enabled: false
     source_org: 物理学院
     authority_level: college
     category: 通知
@@ -1405,11 +1405,241 @@ sources:
       colleges: [物理学院]
     maintainer: unassigned
     frequency: weekly
-    notes: 通知栏目；招生/办公指南栏目结构待确认
+    notes: 已停用：tz 栏目为科研新闻（Nature/Science 简报），低价值；已由下方分栏目来源替代
+  - name: physics-bkjx
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/教学通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70891/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70891a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 40
+    defaults:
+      tags: [物理学院, 本科教学, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科教学最新（459 篇）
+  - name: physics-yjsjx
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70899/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70899a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 8
+    defaults:
+      tags: [物理学院, 研究生教学, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生教学最新（65 篇）
+  - name: physics-bkzs
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70894/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70894a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [物理学院, 本科招生, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科招生（29 篇）
+  - name: physics-yjszs
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/招生通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70902/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70902a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [物理学院, 研究生招生, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生招生（13 篇）
+  - name: physics-yjsjy
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/就业/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/yjsjy_74230/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 9
+    defaults:
+      tags: [物理学院, 就业, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生就业（85 篇）；栏目文章 c 号混合，用宽松锚定
+  - name: physics-bkjiangzhu
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/评奖评优/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70922/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70922a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 12
+    defaults:
+      tags: [物理学院, 奖助, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 本科奖助（112 篇）
+  - name: physics-yjsjiangzhu
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/评奖评优/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70912/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70912a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 24
+    defaults:
+      tags: [物理学院, 奖助, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生奖助（244 篇）
+  - name: physics-xuegong-bk
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学工通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70905/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70905a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [物理学院, 学工, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学工通知-本科（19 篇）
+  - name: physics-xuegong-yjs
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/学工通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/70919/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c70919a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [物理学院, 学工, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学工通知-研究生（20 篇）
+  - name: physics-yjs-tz
+    enabled: true
+    source_org: 物理学院
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生通知/物理学院
+    base_url: https://physics.zju.edu.cn
+    list_url: https://physics.zju.edu.cn/zxxx_69701/list.htm
+    detail_url_pattern: '^https://physics\.zju\.edu\.cn/\d{4}/\d{4}/c69701a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 3
+    defaults:
+      tags: [物理学院, 研究生, 通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [物理学院]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 研究生通知（24 篇：注册/报到/夏令营/推免/政审调档/公派）
 
   # ---- 管理学院（som.zju.edu.cn，WebPlus）----
   - name: som-xxgg
-    enabled: true
+    enabled: false
     source_org: 管理学院
     authority_level: college
     category: 通知
@@ -1429,7 +1659,7 @@ sources:
       colleges: [管理学院]
     maintainer: unassigned
     frequency: weekly
-    notes: 消息公告栏目；管院以新闻/公告为主，缺规章制度类栏目
+    notes: 已停用：管院为品牌宣传站，无学生价值栏目；消息公告仅退学个案+纯附件年度报告，不入库
 
   # ---- 心理与行为科学系（psych.zju.edu.cn，WebPlus）----
   - name: psych-bks
@@ -1438,9 +1668,10 @@ sources:
     authority_level: college
     category: 通知
     source_type: official_notice
-    target_dir: 通知/心理与行为科学系
+    target_dir: 通知/心理与行为科学系/本科生教育
     base_url: http://www.psych.zju.edu.cn
     list_url: http://www.psych.zju.edu.cn/27573/list.htm
+    max_pages: 3
     detail_url_pattern: '^http://www\.psych\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
     content_selector: '.wp_articlecontent'
     title_selector: ''
@@ -1454,6 +1685,97 @@ sources:
     maintainer: unassigned
     frequency: weekly
     notes: 本科生教育栏目
+  - name: psych-xstd-tz
+    enabled: true
+    source_org: 心理与行为科学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/心理与行为科学系/最新通知
+    base_url: http://www.psych.zju.edu.cn
+    list_url: http://www.psych.zju.edu.cn/27622/list.htm
+    max_pages: 10
+    detail_url_pattern: '^http://www\.psych\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [心理与行为科学系, 学生通知]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [心理与行为科学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生天地-最新通知
+  - name: psych-xstd-pjpy
+    enabled: true
+    source_org: 心理与行为科学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/心理与行为科学系/评奖评优
+    base_url: http://www.psych.zju.edu.cn
+    list_url: http://www.psych.zju.edu.cn/27625/list.htm
+    max_pages: 10
+    detail_url_pattern: '^http://www\.psych\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [心理与行为科学系, 评奖评优]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [心理与行为科学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生天地-评奖评优
+  - name: psych-xstd-zizhu
+    enabled: true
+    source_org: 心理与行为科学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/心理与行为科学系/学生资助
+    base_url: http://www.psych.zju.edu.cn
+    list_url: http://www.psych.zju.edu.cn/27626/list.htm
+    max_pages: 9
+    detail_url_pattern: '^http://www\.psych\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [心理与行为科学系, 学生资助]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [心理与行为科学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生天地-学生资助
+  - name: psych-xstd-ziliao
+    enabled: true
+    source_org: 心理与行为科学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/心理与行为科学系/资料下载
+    base_url: http://www.psych.zju.edu.cn
+    list_url: http://www.psych.zju.edu.cn/27629/list.htm
+    detail_url_pattern: '^http://www\.psych\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [心理与行为科学系, 资料下载]
+      applies_to: [未明确]
+      campuses: [未明确]
+      colleges: [心理与行为科学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生天地-资料下载
 
   # ---- 化学系（office.chem.zju.edu.cn，WebPlus；内容在 office 子域）----
   - name: chem-gzzd
@@ -1478,6 +1800,294 @@ sources:
     maintainer: unassigned
     frequency: weekly
     notes: office 办公网规章制度栏目；主页在 www.chem.zju.edu.cn/chemcn
+
+  - name: chem-bkxx
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/本科信息公告
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/34484/list.htm
+    max_pages: 10
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 本科教学]
+      applies_to: [化学系本科生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 本科信息公告；每页约 10 篇，10 页覆盖 2025-02 起
+
+  - name: chemcn-xxgg
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/招生信息
+    base_url: http://www.chem.zju.edu.cn/chemcn
+    list_url: http://www.chem.zju.edu.cn/chemcn/34725/list.htm
+    max_pages: 9
+    detail_url_pattern: '^http://www\.chem\.zju\.edu\.cn/chemcn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 招生]
+      applies_to: [化学系]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 中文站信息公告；侧重研究生招生（简章/复试/拟录取），约 9 页有效
+
+  - name: chem-zyqr
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/专业确认
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/55182/list.htm
+    max_pages: 5
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 专业确认]
+      applies_to: [化学系本科生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 专业确认栏目
+
+  - name: chem-byzt
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/保研免推
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/55183/list.htm
+    max_pages: 4
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 推免, 保研]
+      applies_to: [化学系本科生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 保研免推栏目
+
+  - name: chem-bylw
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/毕业论文
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/34485/list.htm
+    max_pages: 7
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 毕业论文]
+      applies_to: [化学系本科生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 毕业论文栏目；含历年选题与流程通知
+
+  - name: chem-sjjb
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/实践竞赛
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/55184/list.htm
+    max_pages: 5
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 竞赛, 实践]
+      applies_to: [化学系本科生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 实践竞赛栏目
+
+  - name: chem-yjxx
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/研究生通知
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/34490/list.htm
+    max_pages: 10
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 研究生]
+      applies_to: [化学系研究生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 研究生信息公告；注册/课表/奖助/培养通知
+
+  - name: chem-pygl
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/培养管理
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/34492/list.htm
+    max_pages: 7
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 研究生培养]
+      applies_to: [化学系研究生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 研究生培养管理栏目
+
+  - name: chem-xwsq
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/学位申请
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/34493/list.htm
+    max_pages: 4
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 学位]
+      applies_to: [化学系研究生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 研究生学位申请栏目
+
+  - name: chem-jl
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/交流项目
+    base_url: http://office.chem.zju.edu.cn
+    list_url: http://office.chem.zju.edu.cn/55195/list.htm
+    max_pages: 10
+    detail_url_pattern: '^http://office\.chem\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 交流项目]
+      applies_to: [化学系学生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: office 交流项目栏目；对外交流/交换项目选拔
+
+  - name: chemcn-yjszs
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/研究生招生
+    base_url: http://www.chem.zju.edu.cn/chemcn
+    list_url: http://www.chem.zju.edu.cn/chemcn/34726/list.htm
+    max_pages: 10
+    detail_url_pattern: '^http://www\.chem\.zju\.edu\.cn/chemcn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 招生专栏, 研究生]
+      applies_to: [化学系研究生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 中文站研究生教育/招生专栏；与信息公告 34725 可能有重叠
+
+  - name: chemcn-gjjl
+    enabled: true
+    source_org: 化学系
+    authority_level: college
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/化学系/国际交流
+    base_url: http://www.chem.zju.edu.cn/chemcn
+    list_url: http://www.chem.zju.edu.cn/chemcn/34737/list.htm
+    max_pages: 10
+    detail_url_pattern: '^http://www\.chem\.zju\.edu\.cn/chemcn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    defaults:
+      tags: [化学系, 国际交流, 海外]
+      applies_to: [化学系学生]
+      campuses: [紫金港校区]
+      colleges: [化学系]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 中文站国际交流；交换/出国/海外项目
 
 # ================================================================
 # 浙大百事通检索平台（s.zju.edu.cn）——校级统一检索（聚合发布，非 WebPlus 站点）
@@ -1984,3 +2594,532 @@ sources:
     maintainer: unassigned
     frequency: weekly
     notes: 学科竞赛栏目（ACM/CTF 等竞赛通知）；11 条/页
+  - name: bksy-xk
+    enabled: true
+    source_org: 浙江大学本科生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/本科生院/选课
+    base_url: http://bksy.zju.edu.cn
+    list_url: http://bksy.zju.edu.cn/78392/list.htm
+    detail_url_pattern: '^https?://bksy\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.article-content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [本科生院, 选课, 课程]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 选课通知栏目（开课/退补选/选课规则），正文容器 .article-content，15 条/页
+  - name: bksy-ks
+    enabled: true
+    source_org: 浙江大学本科生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/本科生院/考试
+    base_url: http://bksy.zju.edu.cn
+    list_url: http://bksy.zju.edu.cn/78393/list.htm
+    detail_url_pattern: '^https?://bksy\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.article-content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [本科生院, 考试, 补考, 缓考]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 考试通知栏目（补考/英语水平测试等），正文容器 .article-content
+  - name: bksy-bylw
+    enabled: true
+    source_org: 浙江大学本科生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/本科生院/毕业论文
+    base_url: http://bksy.zju.edu.cn
+    list_url: http://bksy.zju.edu.cn/28348/list.htm
+    detail_url_pattern: '^https?://bksy\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.article-content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [本科生院, 毕业论文, 毕业设计]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 毕业论文/毕业设计通知栏目，正文容器 .article-content
+  - name: bksy-xjgl
+    enabled: true
+    source_org: 浙江大学本科生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/本科生院/学籍管理
+    base_url: http://bksy.zju.edu.cn
+    list_url: http://bksy.zju.edu.cn/28310/list.htm
+    detail_url_pattern: '^https?://bksy\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.article-content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [本科生院, 学籍, 学籍管理, 推免, 报到注册]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学籍管理通知栏目（推免/毕业图像/报到注册等），正文容器 .article-content
+  - name: bksy-sjjl
+    enabled: true
+    source_org: 浙江大学本科生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/本科生院/实践交流
+    base_url: http://bksy.zju.edu.cn
+    list_url: http://bksy.zju.edu.cn/28345/list.htm
+    detail_url_pattern: '^https?://bksy\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.article-content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [本科生院, 实践, 学科竞赛, 科研训练, 学术新星]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 实践交流栏目（学术新星/自然科学培育项目等），正文容器 .article-content
+  - name: bksy-xssc
+    enabled: false
+    source_org: 浙江大学本科生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/本科生院/学生手册
+    base_url: http://bksy.zju.edu.cn
+    list_url: http://bksy.zju.edu.cn/28386/list.htm
+    detail_url_pattern: '^https?://bksy\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.article-content'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 2
+    defaults:
+      tags: [本科生院, 学生手册, 学籍管理, 学位授予]
+      applies_to: [本科生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学生手册栏目，正文为 wp_pdf_player PDF（非 IFRAME，JS_MD 不标记会抓成空正文）；暂禁用，需先扩展爬虫支持 PDF player 抽取
+  - name: yjsybg-63246
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/通知公告
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/63246/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 专业学位, 通知公告]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 专业学位处通知公告栏目，正文容器 .wp_articlecontent，14 条/页
+  - name: yjsybg-xgtz
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/学籍管理
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/xgtz/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 学籍, 报到注册, 研究生证]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学籍管理栏目（新生报到/注册/学籍异动等），.wp_articlecontent
+  - name: yjsybg-tz61868
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/证明办理
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61868/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 证明, 学籍认证]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学籍学务认证工作栏目（在读证明/成绩单），.wp_articlecontent
+  - name: yjsybg-glzm
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/证明办理
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/glzm_63382/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 证明, 成绩单, 在读证明]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 各类证明栏目（中英文对照表/证明模板），.wp_articlecontent
+  - name: yjsybg-tz61845
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/培养管理
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61845/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 培养, 课程, 教学管理]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 培养过程及管理（日常教学管理），.wp_articlecontent
+  - name: yjsybg-tz61856
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/培养管理
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61856/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 过程管理, 中期考核, 求是新星]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 培养过程管理栏目（中期考核/求是新星计划等），.wp_articlecontent
+  - name: yjsybg-xkzn
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/选课
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/xkzn/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 选课, 课程, 培养方案]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 选课指南栏目（网上选课指南/选课须知），.wp_articlecontent
+  - name: yjsybg-tz61791
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/奖助
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61791/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 奖学金, 资助]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 奖学金及各类资助栏目，.wp_articlecontent
+  - name: yjsybg-gwzxj
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/奖助
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/gwzxj/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 助学金, 资助]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 助学金栏目（基层就业补偿/国家助学金等），.wp_articlecontent
+  - name: yjsybg-tz61799
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/奖助
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61799/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 专项助学金, 资助]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 专项助学金栏目，.wp_articlecontent
+  - name: yjsybg-tz61795
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/奖助
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61795/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 助教, 助管]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 助教助管栏目（岗位申报/津贴），.wp_articlecontent
+  - name: yjsybg-tz61816
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/奖助
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61816/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 优博, 论文资助]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 争创优博论文资助栏目，.wp_articlecontent
+  - name: yjsybg-tz61891
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/学位
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61891/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 学位授予, 毕业]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学位授予栏目（学位授予仪式/毕业典礼等），.wp_articlecontent
+  - name: yjsybg-tz61879
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/学位
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61879/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 学位申请, 同等学力]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 学位申请及规范栏目，.wp_articlecontent
+  - name: yjsybg-tz61884
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/学位
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/tz_61884/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 论文评审, 盲审]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 论文评审栏目（盲审/论文封面等），.wp_articlecontent
+  - name: yjsybg-ygcgwjw
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/对外交流
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/ygcgwjw/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 对外交流, 公派留学]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 对外交流资助栏目（公派/交流申请），.wp_articlecontent
+  - name: yjsybg-xzzq
+    enabled: true
+    source_org: 浙江大学研究生院
+    authority_level: university
+    category: 通知
+    source_type: official_notice
+    target_dir: 通知/研究生院/下载专区
+    base_url: http://yjsybg.zju.edu.cn
+    list_url: http://yjsybg.zju.edu.cn/xzzq_63380/list.htm
+    detail_url_pattern: '^https?://yjsybg\.zju\.edu\.cn/\d{4}/\d{4}/c\d+a\d+/page\.htm$'
+    content_selector: '.wp_articlecontent'
+    title_selector: ''
+    publish_rule: url_date
+    normalize_headings: true
+    max_pages: 4
+    defaults:
+      tags: [研究生院, 下载, 表格模板]
+      applies_to: [研究生]
+      campuses: [未明确]
+      colleges: [未明确]
+    maintainer: unassigned
+    frequency: weekly
+    notes: 下载专区栏目（培养/学位表格模板），.wp_articlecontent

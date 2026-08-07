@@ -620,7 +620,8 @@ def main() -> None:
         context = p.chromium.launch_persistent_context(
             args.profile, headless=headless, channel=args.channel or None,
             ignore_default_args=["--enable-automation"],
-            args=["--disable-blink-features=AutomationControlled"])
+            # --no-proxy-server: 直连绕过 Clash 链路间歇性挂起（病根在代理，非站点限流）
+            args=["--disable-blink-features=AutomationControlled", "--no-proxy-server"])
         context.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
