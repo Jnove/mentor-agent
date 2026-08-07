@@ -1,0 +1,3 @@
+[submodule "knowledge_base"]
+	path = knowledge_base
+	url = https://github.com/Jnove/mentor-agent-kb.git
