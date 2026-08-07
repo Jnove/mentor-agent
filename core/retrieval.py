@@ -37,20 +37,41 @@ def rrf_fuse(rankings: list[list[str]], k: int = 60) -> list[str]:
 def pick_with_coverage(ranked: list[tuple[float, dict]], top_k: int,
                        min_score: float = COVER_MIN_SCORE,
                        max_extra: int = COVER_MAX_EXTRA) -> list[dict]:
-    """重排后的最终选择：先按分取 top_k，再给"得分够高但文档未覆盖"的候选补位。
+    """重排后的最终选择：先收敛到"每文档一块"凑满 top_k，空位再按分补块，
+    最后给"得分够高但文档未覆盖"的候选补位。
 
     枚举类问题（"求是科学班有哪几种"）里所有相关文档得分都接近 1，
     top_k 往往被少数几篇的多个块占满，导致 LLM 数不全——
-    这里给每个还没进结果的高分文档补上它的最优一块。
+    第一步强制每文件最多占一块，让更多不同文档能进 top_k；
+    第二步用空位把高分块补回，只有一篇相关文档时行为不变；
+    第三步给 top_k 之外的高分未覆盖文档补位。
     细节类问题里无关文档得分接近 0，达不到 min_score，行为不变。
     """
-    picked = [h for _, h in ranked[:top_k]]
-    covered = {h.get("file") for h in picked}
-    for score, h in ranked[top_k:]:
+    picked: list[dict] = []
+    picked_ids: set[str] = set()
+    covered: set[str] = set()
+    # 先收敛到每文档一块凑满 top_k，避免单文档多块占满（枚举类问题数不全的根因）
+    for _, h in ranked:
+        if len(picked) >= top_k:
+            break
+        f = h.get("file")
+        if f and f not in covered:
+            picked.append(h)
+            picked_ids.add(h.get("id"))
+            covered.add(f)
+    # 空位按分补块：只有一篇相关文档时，该文档的高分多块仍能回到结果
+    for _, h in ranked:
+        if len(picked) >= top_k:
+            break
+        if h.get("id") not in picked_ids:
+            picked.append(h)
+            picked_ids.add(h.get("id"))
+    for score, h in ranked:
         if len(picked) >= top_k + max_extra:
             break
         if score >= min_score and h.get("file") not in covered:
             picked.append(h)
+            picked_ids.add(h.get("id"))
             covered.add(h.get("file"))
     return picked
 
