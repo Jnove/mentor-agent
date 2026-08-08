@@ -10,7 +10,7 @@ from core import auth
 from core.config import auth_secret
 from ui.admin_page import render_admin
 from ui.auth_pages import COOKIE_NAME, render_auth
-from ui.chat_page import render_chat
+from bailian_agent.app import render_chat
 from ui.theme import apply_theme
 
 st.set_page_config(page_title="学长组 Agent", page_icon="🎓", layout="wide")

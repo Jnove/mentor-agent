@@ -11,10 +11,6 @@ from bailian_agent.client import BailianClient, BailianError, load_exported_cred
 
 load_dotenv(Path(__file__).with_name(".env"))
 
-st.set_page_config(page_title="百炼校园政策问答", page_icon="🎓")
-st.title("校园政策问答")
-st.caption("检索与回答由阿里云百炼知识库完成")
-
 
 def show_references(references: list[dict]) -> None:
     if not references:
@@ -38,30 +34,40 @@ def get_settings() -> tuple[str, str, str]:
     )
 
 
-api_key, agent_id, api_host = get_settings()
-if not api_key or not agent_id or not api_host:
-    st.error("请配置百炼凭据 CSV、BAILIAN_AGENT_ID 和 API Host。")
-    st.stop()
-
-
 @st.cache_resource
-def get_client() -> BailianClient:
+def get_client(api_key: str, agent_id: str, api_host: str) -> BailianClient:
     return BailianClient(api_key, agent_id, api_host)
 
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+def render_chat() -> None:
+    """Render the Bailian-backed policy chat page."""
+    st.title("校园政策问答")
+    st.caption("检索与回答由阿里云百炼知识库完成")
 
-if st.sidebar.button("清空对话", width="stretch"):
-    st.session_state.messages = []
-    st.rerun()
+    try:
+        api_key, agent_id, api_host = get_settings()
+    except BailianError as exc:
+        st.error(str(exc))
+        return
+    if not api_key or not agent_id or not api_host:
+        st.error("请配置百炼凭据 CSV、BAILIAN_AGENT_ID 和 API Host。")
+        return
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-        show_references(message.get("references", []))
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-if question := st.chat_input("请输入学校政策问题"):
+    if st.sidebar.button("清空对话", width="stretch"):
+        st.session_state.messages = []
+        st.rerun()
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            show_references(message.get("references", []))
+
+    if not (question := st.chat_input("请输入学校政策问题")):
+        return
+
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
         st.markdown(question)
@@ -73,7 +79,7 @@ if question := st.chat_input("请输入学校政策问题"):
                 for message in st.session_state.messages
             ]
             with st.spinner("正在查询知识库..."):
-                result = get_client().chat(history)
+                result = get_client(api_key, agent_id, api_host).chat(history)
             st.markdown(result["text"])
             show_references(result["references"])
             st.session_state.messages.append(
@@ -86,3 +92,8 @@ if question := st.chat_input("请输入学校政策问题"):
         except BailianError as exc:
             st.error(str(exc))
             st.session_state.messages.pop()
+
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="百炼校园政策问答", page_icon="🎓")
+    render_chat()
