@@ -6,7 +6,10 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from bailian_agent.client import BailianClient, BailianError, load_exported_credentials
+if __package__:
+    from .client import BailianClient, BailianError, load_exported_credentials
+else:
+    from client import BailianClient, BailianError, load_exported_credentials
 
 
 load_dotenv(Path(__file__).with_name(".env"))
