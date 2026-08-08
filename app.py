@@ -18,7 +18,21 @@ apply_theme()
 
 auth.init_db()
 _secret = auth_secret()  # 缺 AUTH_SECRET 在这里就报错，不带病运行
-controller = CookieController()
+
+
+def _known_cookies() -> dict[str, str]:
+    """合并初始请求 cookie 与本会话里组件刚写入的最新缓存。"""
+    cookies = st.context.cookies.to_dict()
+    cached = st.session_state.get("cookies")
+    if isinstance(cached, dict):
+        cookies.update(cached)
+    return cookies
+
+
+def _cookie_controller() -> CookieController:
+    """仅在写入/删除 cookie 时加载前端组件；普通刷新直接读请求 cookie。"""
+    st.session_state.setdefault("cookies", _known_cookies())
+    return CookieController()
 
 
 def current_user() -> dict | None:
@@ -29,7 +43,9 @@ def current_user() -> dict | None:
         if u and u["status"] == "active":
             return st.session_state.user
         st.session_state.pop("user", None)
-    token = controller.get(COOKIE_NAME)
+    # st.context 在 WebSocket 初始请求里就带有 cookie，避免 CookieController
+    # 首次 getAll 的 iframe 往返和额外 rerun。
+    token = None if st.session_state.get("auth_cookie_cleared") else _known_cookies().get(COOKIE_NAME)
     if token:
         uid = auth.verify_token(str(token), _secret)
         u = auth.get_user(uid) if uid else None
@@ -37,37 +53,37 @@ def current_user() -> dict | None:
             st.session_state.user = {"id": u["id"], "email": u["email"], "role": u["role"]}
             return st.session_state.user
         # 同上：remove() 缺默认值会 KeyError，这里 token 存在理论上缓存里也有，但保持一致防护
-        if controller.get(COOKIE_NAME):
-            controller.remove(COOKIE_NAME)
+        if _known_cookies().get(COOKIE_NAME):
+            _cookie_controller().remove(COOKIE_NAME)
+            st.session_state.auth_cookie_cleared = True
     return None
 
 
 def _logout() -> None:
-    # 保留 CookieController 的缓存键（'cookies'）：清掉它会让下一轮 controller
-    # 重新拉取浏览器 cookie 并触发 rerun，旧 token 又把人登回来。
-    # 注意：这个字符串必须与 CookieController() 实例化时的 key 参数一致（当前用默认值 'cookies'）
-    _cookies_cache = st.session_state.get("cookies")
+    _cookies_cache = _known_cookies()
     st.session_state.clear()
-    if _cookies_cache is not None:
-        st.session_state["cookies"] = _cookies_cache
+    st.session_state["cookies"] = _cookies_cache
+    # st.context.cookies 在同一 WebSocket 会话中是初始快照；删除 cookie 后仍要
+    # 显式忽略旧 token，直到用户重新登录或刷新建立新会话。
+    st.session_state.auth_cookie_cleared = True
     st.session_state.pending_cookie_clear = True  # 回调里组件不渲染，删除挪到下一轮
 
 
 # 登出后的这一轮：渲染删除组件的同时必须跳过 cookie 门禁——
-# controller.get 在本轮读到的还是服务端缓存的旧 token，会把人重新登进来
+# st.context 在本轮仍是旧 token，因此必须跳过门禁并删除浏览器 cookie
 _logging_out = st.session_state.pop("pending_cookie_clear", False)
-if _logging_out and controller.get(COOKIE_NAME):
-    controller.remove(COOKIE_NAME)
+if _logging_out and _known_cookies().get(COOKIE_NAME):
+    _cookie_controller().remove(COOKIE_NAME)
 
 user = None if _logging_out else current_user()
 if user is None:
-    render_auth(controller)
+    render_auth()
     st.stop()
 
 # 上一轮 login_as 暂存的 cookie 在这一轮写入——本轮无 rerun，组件能完整渲染
 if "pending_auth_cookie" in st.session_state:
     _token, _max_age = st.session_state.pop("pending_auth_cookie")
-    controller.set(COOKIE_NAME, _token, max_age=_max_age, secure=True)
+    _cookie_controller().set(COOKIE_NAME, _token, max_age=_max_age, secure=True)
 
 pages = [st.Page(render_chat, title="问答", icon=":material/school:", default=True)]
 if user["role"] == "admin":

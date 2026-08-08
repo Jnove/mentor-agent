@@ -62,8 +62,6 @@ def note_card_html(n: dict) -> str:
 
 
 def render_chat():
-    retriever, llm = load_resources()
-
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "notes" not in st.session_state:
@@ -72,7 +70,7 @@ def render_chat():
     st.markdown(
         '<div class="eyebrow">Mentor Group · 学长知识台</div>'
         '<div class="brand">学长组<span class="apo">\'s</span> Agent</div>'
-        f'<div class="brand-sub">校园政策问答 · 回答均附来源 · 知识库 {retriever.col.count()} 个片段</div>'
+        '<div class="brand-sub">校园政策问答 · 回答均附来源 · 本地知识库</div>'
         '<div class="brand-rule"></div>',
         unsafe_allow_html=True,
     )
@@ -124,6 +122,9 @@ def render_chat():
                 answer_slot = None
                 try:
                     with st.spinner("检索知识库中..."):
+                        # 嵌入模型、Chroma、BM25 与重排器初始化较慢，首屏不需要；
+                        # 推迟到首次真正提问并由 cache_resource 保证后续复用。
+                        retriever, llm = load_resources()
                         search_q = rewrite_query(llm, history, question)
                         # 追问时把上一轮命中并入重排候选池，答案前后依据保持连贯
                         hits = retriever.search(

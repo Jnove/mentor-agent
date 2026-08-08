@@ -3,8 +3,9 @@
 锁定的时序契约（对应提交 8935370 / aea2802 / 65bf897）：
 1. 登录：login_as 只把 token 暂存 pending_auth_cookie，controller.set 必须发生在
    st.rerun 之后、门禁通过的那一轮（rerun 会清掉本轮元素，组件来不及写浏览器）
-2. 登出：_logout 保留 CookieController 缓存键 'cookies'，下一轮跳过门禁并 remove
+2. 登出：_logout 保留已知 cookie 缓存，下一轮跳过门禁并 remove
 3. current_user 两个 if 顺序执行（session 用户失效后仍要走 cookie 分支完成清理）
+4. 自动登录：普通首屏直接读 st.context.cookies，不挂载 CookieController、不多跑一轮
 
 CookieController 是前端组件，这里用 FakeCookieController 按 run 粒度模拟其
 时序语义（见类 docstring），并通过 sys.modules 注入替换真组件。
@@ -42,7 +43,7 @@ class FakeCookieController:
     """
     browser: dict = {}
     calls: list = []          # (op, name, value, options, run_no)
-    run_count = 0             # app.py 每轮顶层实例化一次，因此等于脚本运行轮数
+    run_count = 0             # 仅在写入/删除 cookie 时实例化，用于记录组件调用顺序
 
     @classmethod
     def reset(cls, browser: dict | None = None) -> None:
@@ -158,11 +159,11 @@ def _has_state(at: AppTest, key: str) -> bool:
 
 
 def _login_via_cookie(at: AppTest) -> AppTest:
-    """浏览器带着有效 cookie 打开：第 1 轮组件挂载拉取 cookie，第 2 轮完成自动登录。"""
+    """模拟初始请求已带 cookie：首轮直接自动登录，不挂载前端组件。"""
+    at.session_state["cookies"] = dict(FakeCookieController.browser)
     _run(at)
-    assert _on_login_page(at), "首轮 cookie 尚未回传，应短暂停在登录页"
-    _run(at)  # 模拟前端回传 getAll 结果后触发的 rerun
-    assert _logged_in(at), "第 2 轮应凭 cookie 自动登录"
+    assert _logged_in(at), "首轮应凭请求 cookie 自动登录"
+    assert FakeCookieController.run_count == 0, "自动登录不应挂载 CookieController"
     return at
 
 
@@ -189,8 +190,8 @@ def test_login_sets_cookie_after_rerun_not_before():
     assert len(sets) == 1, f"cookie 应恰好写一次: {FakeCookieController.calls}"
     _, name, token, options, run_no = sets[0]
     assert name == COOKIE
-    assert FakeCookieController.run_count == 3, "登录应是 初始→提交→rerun 共 3 轮"
-    assert run_no == 3, (
+    assert FakeCookieController.run_count == 1, "只有写 cookie 时才应挂载一次组件"
+    assert run_no == 1, (
         "controller.set 必须发生在 rerun 之后的门禁通过轮；"
         "在 login_as 里直接 set 会被 rerun 清掉元素、写不进浏览器"
     )
@@ -223,8 +224,8 @@ def test_invalid_cookie_cleaned_and_stays_out():
     FakeCookieController.reset({COOKIE: auth.sign_token(uid, int(time.time()) - 1, SECRET)})
 
     at = AppTest.from_file(APP, default_timeout=10)
+    at.session_state["cookies"] = dict(FakeCookieController.browser)
     _run(at)
-    _run(at)  # cookie 回传轮
     assert _on_login_page(at) and not _has_state(at, "user")
     removes = [c for c in FakeCookieController.calls if c[0] == "remove"]
     assert len(removes) == 1 and removes[0][1] == COOKIE
@@ -240,7 +241,7 @@ def test_disabled_user_cookie_rejected():
     FakeCookieController.reset({COOKIE: _valid_token(uid)})
 
     at = AppTest.from_file(APP, default_timeout=10)
-    _run(at)
+    at.session_state["cookies"] = dict(FakeCookieController.browser)
     _run(at)
     assert _on_login_page(at) and not _has_state(at, "user"), "禁用应立即生效"
     assert COOKIE not in FakeCookieController.browser
@@ -308,7 +309,7 @@ def test_logout_clears_cookie_and_stays_logged_out():
 
     # 新会话（浏览器重开/刷新，共享 jar）：确认浏览器 cookie 真的删掉了
     at2 = AppTest.from_file(APP, default_timeout=10)
-    _run(at2)
+    at2.session_state["cookies"] = dict(FakeCookieController.browser)
     _run(at2)
     assert _on_login_page(at2) and not _has_state(at2, "user"), "登出后刷新不应自动登录"
 
