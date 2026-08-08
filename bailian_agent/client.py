@@ -14,6 +14,24 @@ class BailianError(RuntimeError):
     """Raised when Model Studio rejects a request or returns invalid data."""
 
 
+def renumber_references(answer: str, references: list[dict]) -> tuple[str, list[tuple[int, dict]]]:
+    """Renumber citations using Bailian's explicit citation indexes."""
+    by_index = {int(reference["index"]): reference for reference in references}
+    mapping: dict[int, int] = {}
+    cited: list[tuple[int, dict]] = []
+
+    def replace(match: re.Match) -> str:
+        old = int(match.group(1))
+        if old not in by_index:
+            return match.group(0)
+        if old not in mapping:
+            mapping[old] = len(mapping) + 1
+            cited.append((mapping[old], by_index[old]))
+        return f"[{mapping[old]}]"
+
+    return re.sub(r"\[(\d{1,3})]", replace, answer), cited
+
+
 def load_exported_credentials(path: str | Path) -> dict[str, str]:
     """Read the key-value CSV exported by the Model Studio console."""
     with Path(path).open("r", encoding="utf-8-sig", newline="") as file:

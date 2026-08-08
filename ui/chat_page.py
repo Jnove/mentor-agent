@@ -11,6 +11,7 @@
 import html
 import logging
 from datetime import date
+from pathlib import Path
 
 import streamlit as st
 
@@ -20,11 +21,15 @@ import streamlit as st
 logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ERROR)
 
 from bailian_agent.app import get_client, get_settings
-from bailian_agent.client import BailianError
+from bailian_agent.client import BailianError, renumber_references
+from bailian_agent.local_sources import attach_original_urls
 from core.llm import (
-    get_llm, renumber_citations, strip_citations, summarize_turn,
+    get_llm, strip_citations, summarize_turn,
 )
 from core.notes import dedup_sources, notes_to_markdown, snippet
+
+
+ZW_DIR = Path(__file__).resolve().parents[1] / "knowledge_base" / "zw"
 
 
 @st.cache_resource
@@ -127,16 +132,18 @@ def render_chat():
                             {"role": "user", "content": question},
                         ])
 
+                    references = attach_original_urls(result["references"], ZW_DIR)
                     hits = [
                         {
                             "id": ref.get("doc_id") or str(ref["index"]),
+                            "citation_index": ref["index"],
                             "title": ref["title"],
                             "text": ref.get("text", ""),
-                            "source_url": ref.get("doc_url", ""),
+                            "source_url": ref.get("source_url", ""),
                             "source_org": "阿里云百炼知识库",
                             "publish_date": "",
                         }
-                        for ref in result["references"]
+                        for ref in references
                     ]
                     retrieval = {
                         "n": len(hits),
@@ -156,13 +163,7 @@ def render_chat():
 
                     answer_slot = st.empty()
                     answer = result["text"]
-                    cite_srcs = [
-                        {key: hit[key] for key in (
-                            "title", "source_url", "source_org", "publish_date"
-                        )}
-                        for hit in hits
-                    ]
-                    answer, cited = renumber_citations(answer, cite_srcs)
+                    answer, cited = renumber_references(answer, hits)
                     answer_slot.markdown(answer)
                     if cited:
                         sources = [s for _, s in cited]
