@@ -19,14 +19,12 @@ THEME_CSS = """
 header[data-testid="stHeader"] { background: transparent; }
 [data-testid="stDecoration"] { display: none; }
 
-.stApp { background: #FFFEF8; }
-/* 垫在毛玻璃后面的两团光晕：青（右上）+ 青铜（左下），没有它们玻璃糊不出层次 */
-.stApp::before {
-  content: ''; position: fixed; inset: 0; pointer-events: none;
+.stApp {
   background:
     radial-gradient(ellipse 42% 38% at 82% 8%, rgba(15,123,114,.16), transparent 70%),
     radial-gradient(ellipse 40% 36% at 10% 88%, rgba(154,107,47,.14), transparent 70%),
-    radial-gradient(ellipse 30% 26% at 45% 55%, rgba(15,123,114,.05), transparent 70%);
+    radial-gradient(ellipse 30% 26% at 45% 55%, rgba(15,123,114,.05), transparent 70%),
+    #FFFEF8;
 }
 /* header 现在可见（fixed 约 3.75rem），顶部留白比隐藏时代多一点 */
 .block-container { padding: 4.2rem 2.4rem 0.8rem; max-width: 1240px; }
@@ -64,13 +62,12 @@ header[data-testid="stHeader"] { background: transparent; }
   font-size: .72rem; font-weight: 700; padding: .05rem .55rem;
 }
 
-/* 毛玻璃卡片（笔记面板 / 聊天面板 / 登录卡片）；st.container(key=...) 生成的稳定 class */
+/* 面板使用不透明度较高的静态底色。不要在大面积滚动容器上使用
+   backdrop-filter：滚动和输入时会持续触发浏览器重绘，低功耗 GPU 尤其明显。 */
 .st-key-chat_box, .st-key-notes_box, .st-key-auth_box {
-  background: rgba(255,255,255,.62);
-  backdrop-filter: blur(18px) saturate(1.65);
-  -webkit-backdrop-filter: blur(18px) saturate(1.65);
+  background: rgba(255,255,255,.92);
   border: 1px solid rgba(255,255,255,.78); border-radius: 18px;
-  box-shadow: rgba(15,123,114,.10) 0 24px 56px, rgba(30,41,36,.06) 0 3px 12px;
+  box-shadow: rgba(15,123,114,.08) 0 16px 36px, rgba(30,41,36,.05) 0 3px 10px;
 }
 
 /* —— 登录页 —— */
@@ -117,9 +114,7 @@ header[data-testid="stHeader"] { background: transparent; }
 }
 
 [data-testid="stChatInput"] {
-  background: rgba(255,255,255,.70);
-  backdrop-filter: blur(18px) saturate(1.65);
-  -webkit-backdrop-filter: blur(18px) saturate(1.65);
+  background: rgba(255,255,255,.94);
   border: 1.5px solid rgba(255,255,255,.8); border-radius: 999px;
   box-shadow: rgba(30,41,36,.07) 0 2px 12px;
 }
