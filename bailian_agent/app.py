@@ -12,7 +12,10 @@ else:
     from client import BailianClient, BailianError, load_exported_credentials
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(Path(__file__).with_name(".env"))
+load_dotenv(PROJECT_ROOT / "knowledge_base" / "mentor-agent.env")
 
 
 def show_references(references: list[dict]) -> None:
@@ -29,6 +32,8 @@ def show_references(references: list[dict]) -> None:
 
 def get_settings() -> tuple[str, str, str]:
     csv_path = os.getenv("BAILIAN_CREDENTIAL_CSV", "")
+    if csv_path and not Path(csv_path).is_absolute():
+        csv_path = str(PROJECT_ROOT / csv_path)
     credentials = load_exported_credentials(csv_path) if csv_path else {}
     return (
         credentials.get("apiKey") or os.getenv("DASHSCOPE_API_KEY", ""),
@@ -45,7 +50,7 @@ def get_client(api_key: str, agent_id: str, api_host: str) -> BailianClient:
 def render_chat() -> None:
     """Render the Bailian-backed policy chat page."""
     st.title("校园政策问答")
-    st.caption("检索与回答由阿里云百炼知识库完成")
+    st.caption("懂校园政策的专属学长")
 
     try:
         api_key, agent_id, api_host = get_settings()
@@ -53,7 +58,7 @@ def render_chat() -> None:
         st.error(str(exc))
         return
     if not api_key or not agent_id or not api_host:
-        st.error("请配置百炼凭据 CSV、BAILIAN_AGENT_ID 和 API Host。")
+        st.error("请配置知识库服务凭据、应用 ID 和 API Host。")
         return
 
     if "messages" not in st.session_state:
@@ -81,8 +86,7 @@ def render_chat() -> None:
                 {"role": message["role"], "content": message["content"]}
                 for message in st.session_state.messages
             ]
-            with st.spinner("正在查询知识库..."):
-                result = get_client(api_key, agent_id, api_host).chat(history)
+            result = get_client(api_key, agent_id, api_host).chat(history)
             st.markdown(result["text"])
             show_references(result["references"])
             st.session_state.messages.append(
@@ -98,5 +102,5 @@ def render_chat() -> None:
 
 
 if __name__ == "__main__":
-    st.set_page_config(page_title="百炼校园政策问答", page_icon="🎓")
+    st.set_page_config(page_title="校园政策问答", page_icon="🎓")
     render_chat()
