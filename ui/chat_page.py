@@ -136,7 +136,7 @@ def render_chat():
                     hits = [
                         {
                             "id": ref.get("doc_id") or str(ref["index"]),
-                            "citation_index": ref["index"],
+                            "index": ref["index"],
                             "title": ref["title"],
                             "text": ref.get("text", ""),
                             "source_url": ref.get("source_url", ""),
