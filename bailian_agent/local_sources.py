@@ -1,4 +1,4 @@
-"""Resolve Bailian document references against the local zw knowledge base."""
+"""Resolve Bailian document references against the local knowledge base."""
 
 from __future__ import annotations
 
@@ -8,25 +8,32 @@ from pathlib import Path
 
 
 _ORIGINAL_URL = re.compile(r"(?m)^原文网址[：:]\s*(https?://\S+)\s*$")
+_SOURCE_URL = re.compile(r"(?m)^source_url:\s*[\"']?(https?://[^\s\"']+)")
 _HEADING = re.compile(r"(?m)^#\s+(.+?)\s*$")
 
 
 def _keys(value: str) -> tuple[str, ...]:
-    name = Path(value.replace("\\", "/")).name.casefold()
+    normalized = value.replace("\\", "/").strip().casefold()
+    name = Path(normalized).name
     stem = Path(name).stem
-    return tuple(dict.fromkeys((name, stem)))
+    path_stem = str(Path(normalized).with_suffix(""))
+    return tuple(dict.fromkeys((normalized, path_stem, name, stem)))
 
 
 @lru_cache(maxsize=1)
 def _source_index(root: str) -> dict[str, str]:
     index: dict[str, str] = {}
-    for path in Path(root).rglob("*.md"):
-        text = path.read_text(encoding="utf-8-sig")
-        url_match = _ORIGINAL_URL.search(text)
+    root_path = Path(root)
+    for path in root_path.rglob("*.md"):
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError):
+            continue
+        url_match = _ORIGINAL_URL.search(text) or _SOURCE_URL.search(text)
         if not url_match:
             continue
         title_match = _HEADING.search(text)
-        values = [path.name, path.stem]
+        values = [path.relative_to(root_path).as_posix(), path.name, path.stem]
         if title_match:
             values.append(title_match.group(1).strip())
         for value in values:

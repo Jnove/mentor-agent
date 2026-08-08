@@ -29,7 +29,7 @@ from core.llm import (
 from core.notes import dedup_sources, notes_to_markdown, snippet
 
 
-ZW_DIR = Path(__file__).resolve().parents[1] / "knowledge_base" / "zw"
+KB_DIR = Path(__file__).resolve().parents[1] / "knowledge_base"
 
 
 @st.cache_resource
@@ -132,7 +132,7 @@ def render_chat():
                             {"role": "user", "content": question},
                         ])
 
-                    references = attach_original_urls(result["references"], ZW_DIR)
+                    references = attach_original_urls(result["references"], KB_DIR)
                     hits = [
                         {
                             "id": ref.get("doc_id") or str(ref["index"]),
