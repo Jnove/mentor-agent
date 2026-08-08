@@ -3,7 +3,7 @@
 
 左侧「学长笔记」自动沉淀每轮问答要点，可一键导出 FAQ；右侧为检索问答。
 
-配置：复制 .env.example 为 .env 并填入 API Key（OpenAI 兼容接口，DeepSeek/Qwen/Kimi 均可）
+回答由阿里云百炼知识库生成；左侧笔记仍使用原有 OpenAI 兼容模型总结。
 
 用法:
     streamlit run app.py
@@ -12,7 +12,6 @@ import html
 import logging
 from datetime import date
 
-import chromadb
 import streamlit as st
 
 # Streamlit 的文件监视器会遍历 sys.modules 探测 __path__，探到 transformers 5.x 时触发它懒加载
@@ -20,16 +19,12 @@ import streamlit as st
 # 内部 catch，不影响运行，只是把 traceback 刷进控制台。屏蔽这一条 warning 即可。
 logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ERROR)
 
-from core.config import BST_FALLBACK, BST_FALLBACK_SCORE, BST_TOP_N, COLLECTION, DB_DIR
-from core import bst
-from core.embeddings import get_embedder
+from bailian_agent.app import get_client, get_settings
+from bailian_agent.client import BailianError
 from core.llm import (
-    build_context, get_llm, renumber_citations, rewrite_query, stream_answer,
-    strip_citations, summarize_turn,
+    get_llm, renumber_citations, strip_citations, summarize_turn,
 )
 from core.notes import dedup_sources, notes_to_markdown, snippet
-from core.retrieval import Retriever, load_reranker
-from core.slang import expand_query
 
 
 @st.cache_resource
@@ -37,12 +32,17 @@ def load_resources():
     import os
 
     if not os.environ.get("LLM_API_KEY"):
-        st.error("未找到 LLM_API_KEY：请复制 .env.example 为 .env 并填入 API Key，然后重启。")
+        st.error("未找到 LLM_API_KEY：左侧学长笔记需要原有模型配置。")
         st.stop()
-    embed = get_embedder()
-    col = chromadb.PersistentClient(path=DB_DIR).get_collection(COLLECTION)
-    retriever = Retriever(embed, col, reranker=load_reranker())
-    return retriever, get_llm()
+    try:
+        api_key, agent_id, api_host = get_settings()
+    except BailianError as exc:
+        st.error(str(exc))
+        st.stop()
+    if not api_key or not agent_id or not api_host:
+        st.error("请配置百炼凭据 CSV、BAILIAN_AGENT_ID 和 API Host。")
+        st.stop()
+    return get_client(api_key, agent_id, api_host), get_llm()
 
 
 def note_card_html(n: dict) -> str:
@@ -62,7 +62,7 @@ def note_card_html(n: dict) -> str:
 
 
 def render_chat():
-    retriever, llm = load_resources()
+    bailian, llm = load_resources()
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -72,7 +72,7 @@ def render_chat():
     st.markdown(
         '<div class="eyebrow">Mentor Group · 学长知识台</div>'
         '<div class="brand">学长组<span class="apo">\'s</span> Agent</div>'
-        f'<div class="brand-sub">校园政策问答 · 回答均附来源 · 知识库 {retriever.col.count()} 个片段</div>'
+        '<div class="brand-sub">校园政策问答 · 回答均附来源 · 阿里云百炼知识库</div>'
         '<div class="brand-rule"></div>',
         unsafe_allow_html=True,
     )
@@ -105,9 +105,7 @@ def render_chat():
         question = st.chat_input("例如：转专业需要什么条件？")
 
     if question:
-        # 不含当前问题；只保留 role/content，附加字段（sources_md）不能发给 LLM 接口。
-        # assistant 历史要洗掉引用编号——那些编号对应上一轮的来源表，喂回去会被
-        # 模型照抄、在本轮重编号时串到错误来源
+        # 百炼只接收 role/content；上一轮的本地引用编号不能带入下一轮。
         history = [
             {"role": m["role"],
              "content": strip_citations(m["content"])
@@ -123,66 +121,47 @@ def render_chat():
             with st.chat_message("assistant", avatar="🎓"):
                 answer_slot = None
                 try:
-                    with st.spinner("检索知识库中..."):
-                        search_q = rewrite_query(llm, history, question)
-                        # 追问时把上一轮命中并入重排候选池，答案前后依据保持连贯
-                        hits = retriever.search(
-                            search_q,
-                            carry_ids=st.session_state.get("last_hit_ids", ()),
-                        )
-                        # 百事通实时兜底：知识库无命中或最高分过低（库外问题）时，
-                        # 实时检索全校常见问题 + 网页资讯补进 prompt。结果结构与
-                        # RAG hits 兼容（title/source_url/… 齐全），build_context 原样处理
-                        fallback = False
-                        if BST_FALLBACK:
-                            top = max((h.get("score") or 0) for h in hits) if hits else 0
-                            if not hits or top < BST_FALLBACK_SCORE:
-                                bst_hits = bst.bst_search(search_q, top_n=BST_TOP_N)
-                                if bst_hits:
-                                    hits = [*hits, *bst_hits]
-                                    fallback = True
-                    # 检索详情随消息保存，重跑后历史循环里能原样重绘。
-                    # 展示的是真实检索词：含改写和黑话扩展（search 内部同一函数），
-                    # 否则扩展词把意外文档拉进结果时从 UI 上查不出原因
-                    shown_q = expand_query(search_q)
+                    with st.spinner("查询百炼知识库中..."):
+                        result = bailian.chat([
+                            *history,
+                            {"role": "user", "content": question},
+                        ])
+
+                    hits = [
+                        {
+                            "id": ref.get("doc_id") or str(ref["index"]),
+                            "title": ref["title"],
+                            "text": ref.get("text", ""),
+                            "source_url": ref.get("doc_url", ""),
+                            "source_org": "阿里云百炼知识库",
+                            "publish_date": "",
+                        }
+                        for ref in result["references"]
+                    ]
                     retrieval = {
                         "n": len(hits),
-                        "bst": fallback,
-                        "bst_n": len(bst_hits) if fallback else 0,
-                        "rewritten": shown_q if shown_q != question else "",
+                        "rewritten": "",
                         "items": [
-                            (
-                                f"- 《{h['title']}》〔百事通 · {h['from_bst']}〕— {snippet(h['text'])}"
-                                if h.get("from_bst") else f"- 《{h['title']}》— {snippet(h['text'])}"
-                            )
+                            f"- 《{h['title']}》— {snippet(h['text'])}"
                             for h in hits
                         ],
                     }
-                    if fallback:
-                        exp_title = (
-                            f"知识库未命中，百事通实时补充 {retrieval['bst_n']} 条"
-                            if not hits or all(h.get("from_bst") for h in hits)
-                            else f"知识库命中 {retrieval['n'] - retrieval['bst_n']} 条 + 百事通补充 {retrieval['bst_n']} 条"
-                        )
-                    else:
-                        exp_title = (
-                            f"检索到 {retrieval['n']} 条相关片段"
-                            if retrieval["n"] else "未检索到相关片段"
-                        )
+                    exp_title = (
+                        f"百炼检索到 {retrieval['n']} 条参考资料"
+                        if retrieval["n"] else "百炼未返回参考资料"
+                    )
                     with st.expander(exp_title):
-                        if retrieval["rewritten"]:
-                            st.caption(f"实际检索词：{retrieval['rewritten']}")
                         for line in retrieval["items"]:
                             st.markdown(line)
 
-                    prompt, cite_srcs = build_context(question, hits, retriever.catalog)
-                    answer_slot = st.empty()  # 占位：流式结束后用重编号正文原地替换
-                    streamed = answer_slot.write_stream(stream_answer(llm, history, prompt))
-                    # write_stream 返回 str | list；全是字符串块时归一成 str
-                    answer = streamed if isinstance(streamed, str) else "".join(map(str, streamed))
-
-                    # 引用重映射为按出现顺序的 [1][2][3]…；来源清单跟着正文引用走，
-                    # LLM 没标注时退回"检索命中去重"
+                    answer_slot = st.empty()
+                    answer = result["text"]
+                    cite_srcs = [
+                        {key: hit[key] for key in (
+                            "title", "source_url", "source_org", "publish_date"
+                        )}
+                        for hit in hits
+                    ]
                     answer, cited = renumber_citations(answer, cite_srcs)
                     answer_slot.markdown(answer)
                     if cited:
@@ -199,28 +178,17 @@ def render_chat():
                         st.caption("来源：" + caption)
                     ok = True
                 except Exception as e:
-                    # Streamlit 自身的控制流异常必须放行（当前版本继承 BaseException
-                    # 不会进这里，但旧版继承 Exception，防一手）
                     if type(e).__module__.startswith("streamlit"):
                         raise
-                    # 网关前置 Cloudflare、403 有前科（见 core/llm.py），主链路必须兜底：
-                    # 学生不能看到 traceback
                     logging.exception("回答生成失败")
                     if answer_slot is not None:
-                        answer_slot.empty()  # 清掉半截流式输出
+                        answer_slot.empty()
                     st.error("学长这会儿开小差了（网络或模型服务波动），请稍等片刻再问一次。")
                 finally:
-                    # 失败或被打断（流式中途用户提交新问题会触发 Streamlit 的
-                    # BaseException 级中断）都回滚本轮 user 消息，历史保持一问一答
-                    # 配平，否则下一轮 history 出现连续两条 user
                     if not ok:
                         st.session_state.messages.pop()
 
         if ok:
-            if hits:
-                # 零命中轮（库外问题被阈值过滤光）不覆写：中间插一个闲聊问题
-                # 不应该把上一轮的追问连续性状态清掉
-                st.session_state.last_hit_ids = [h["id"] for h in hits if "id" in h]
             st.session_state.messages.append(
                 {"role": "assistant", "content": answer,
                  "sources_md": caption, "retrieval": retrieval}
