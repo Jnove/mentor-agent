@@ -25,4 +25,25 @@ python -m unittest bailian_agent.test_client
 
 当前只包含问答、多轮会话、来源片段展示和清空对话。对话历史由本地页面传给百炼；知识库上传与更新暂时使用百炼控制台完成。
 
+## 4. 生成本地上传清单
+
+下面的命令只扫描本地文件，不调用百炼接口：
+
+```powershell
+python -m bailian_agent.upload_manifest --knowledge-base-id o2jmpen3eu
+```
+
+结果保存在 `bailian_agent/upload_manifest.jsonl`。相同 `doc_id` 只保留一条，正式目录优先于 `staging`；内容哈希用于判断是否需要重新上传。
+
+## 5. 上传知识库
+
+上传器使用阿里云官方 SDK，并在每次成功后更新同一个清单。重复运行会从中断位置继续：
+
+```powershell
+python -m bailian_agent.upload_kb `
+  --access-key-csv "C:\Users\Vito\Downloads\AccessKey.csv" `
+  --workspace-id ws-gdu6o99wwwsr7y6n `
+  --index-id o2jmpen3eu
+```
+
 参考：[百炼应用 API](https://help.aliyun.com/zh/model-studio/call-alibaba-cloud-model-studio-through-api)、[官方 Python SDK](https://github.com/dashscope/dashscope-sdk-python)。本 PoC 直接使用项目已有的 `httpx`，不额外引入 SDK。
