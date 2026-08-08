@@ -10,10 +10,10 @@ from core.mailer import send_code, smtp_configured
 COOKIE_NAME = "mentor_auth"
 
 
-def login_as(user: dict, controller) -> None:
+def login_as(user: dict) -> None:
     """签 token 暂存到 session_state，由 app.py 在下一轮渲染时写入 cookie。
 
-    不能在这里直接 controller.set：调用方随后 st.rerun() 会清掉本次运行的
+    不能在这里直接写 cookie：调用方随后 st.rerun() 会清掉本次运行的
     元素，写 cookie 的前端组件来不及执行（streamlit-cookies-controller 的坑）。
 
     已知窗口：暂存到下一轮写入之间用户手动刷新会丢失登录态（session_state
@@ -23,6 +23,7 @@ def login_as(user: dict, controller) -> None:
     token = auth.sign_token(user["id"], int(time.time()) + days * 86400, auth_secret())
     st.session_state.pending_auth_cookie = (token, days * 86400)
     st.session_state.user = {"id": user["id"], "email": user["email"], "role": user["role"]}
+    st.session_state.pop("auth_cookie_cleared", None)
     # 清上一个账号的聊天状态：账号被禁用后换人登录不会经过"退出登录"的
     # session_state.clear()，不清的话新用户会看到前一个人的对话、笔记，
     # 且追问候选继承（last_hit_ids）会把前一个人的检索主题带进来
@@ -30,7 +31,7 @@ def login_as(user: dict, controller) -> None:
         st.session_state.pop(key, None)
 
 
-def render_auth(controller) -> None:
+def render_auth() -> None:
     # 与问答页同一套品牌语言：eyebrow + 衬线标题 + 渐变短线，居中；表单收进毛玻璃卡片
     _, mid, _ = st.columns([1, 1.15, 1])
     with mid:
@@ -47,19 +48,19 @@ def render_auth(controller) -> None:
                 st.warning("开发模式：SMTP 未配置，验证码会打印在服务器控制台。")
             tab_login, tab_register = st.tabs(["登录", "注册"])
             with tab_login:
-                _render_login(controller)
+                _render_login()
             with tab_register:
-                _render_register(controller)
+                _render_register()
 
 
-def _render_login(controller) -> None:
+def _render_login() -> None:
     with st.form("login_form"):
         email = st.text_input("邮箱")
         password = st.text_input("密码", type="password")
         if st.form_submit_button("登录", type="primary", width="stretch"):
             status, user = auth.authenticate(email.strip().lower(), password)
             if status == "ok":
-                login_as(user, controller)
+                login_as(user)
                 st.rerun()
             elif status == "locked":
                 st.error("失败次数过多，账号已锁定 15 分钟")
@@ -69,7 +70,7 @@ def _render_login(controller) -> None:
                 st.error("邮箱或密码错误")
 
 
-def _render_register(controller) -> None:
+def _render_register() -> None:
     step = st.session_state.setdefault("reg_step", 1)
     if step == 1:
         with st.form("reg_email_form"):
@@ -113,7 +114,7 @@ def _render_register(controller) -> None:
                     else:
                         st.session_state.pop("reg_step", None)
                         st.session_state.pop("reg_email", None)
-                        login_as(auth.get_user(uid), controller)
+                        login_as(auth.get_user(uid))
                         st.rerun()
         if st.button("换个邮箱重新发送", type="tertiary"):
             st.session_state.reg_step = 1

@@ -1,9 +1,9 @@
-"""全站共享主题：CSS 部分（毛玻璃/光晕/品牌字型等 config.toml 做不到的）。
+"""全站共享主题：CSS 部分（光晕/品牌字型等 config.toml 做不到的）。
 
-设计语言：象牙白底 #FFFEF8，青 #0F7B72 × 青铜 #9A6B2F，毛玻璃卡片
+设计语言：象牙白底 #FFFEF8，青 #0F7B72 × 青铜 #9A6B2F，轻量半透明卡片
 签名元素：贯穿顶部的青→青铜渐变细线（呼应 jnove.dpdns.org）；
 衬线品牌标题 + 青铜斜体 's；Vivia 式竖条小节标题；
-毛玻璃配方参考 silhouette.dpdns.org：blur(18px) saturate(1.65) + 半透明白底 + 白描边 + 彩色柔影。
+卡片使用静态半透明底色 + 白描边 + 彩色柔影，避免实时背景模糊拖慢浏览器。
 
 颜色/圆角/字号等原生主题项在 .streamlit/config.toml，改配色两边要同步。
 app.py 每轮 rerun 调一次 apply_theme()，登录页/问答页/管理页共用。
@@ -12,8 +12,6 @@ import streamlit as st
 
 THEME_CSS = """
 <style>
-@import url('https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@700;900&display=swap');
-
 /* header 保留（侧边栏收起后的展开按钮在里面），只做透明化；
    彩虹装饰条隐藏，顶部细线由 .top-thread 提供 */
 header[data-testid="stHeader"] { background: transparent; }
@@ -40,7 +38,7 @@ header[data-testid="stHeader"] { background: transparent; }
   text-transform: uppercase; margin-bottom: .15rem;
 }
 .brand {
-  font-family: Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+  font-family: Georgia, 'STZhongsong', 'SimSun', 'Source Han Serif SC', serif;
   font-size: 2.05rem; font-weight: 900; color: #22332F; line-height: 1.15;
 }
 .brand .apo { font-style: italic; color: #9A6B2F; font-weight: 700; }
@@ -99,7 +97,7 @@ header[data-testid="stHeader"] { background: transparent; }
 .note-empty { position: relative; text-align: center; padding: 2.4rem 1rem; }
 .note-empty .ghost {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: Georgia, 'Noto Serif SC', serif; font-size: 6.5rem; font-weight: 900;
+  font-family: Georgia, 'STZhongsong', 'SimSun', serif; font-size: 6.5rem; font-weight: 900;
   color: rgba(154,107,47,.10); user-select: none; pointer-events: none;
 }
 .note-empty .hint { position: relative; z-index: 1; color: #9AA39D; font-size: .88rem; margin-top: 3.6rem; }

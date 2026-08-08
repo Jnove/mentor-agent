@@ -67,8 +67,6 @@ def note_card_html(n: dict) -> str:
 
 
 def render_chat():
-    bailian, llm = load_resources()
-
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "notes" not in st.session_state:
@@ -127,6 +125,9 @@ def render_chat():
                 answer_slot = None
                 try:
                     with st.spinner("查询百炼知识库中..."):
+                        # 客户端创建较慢，首屏不需要；推迟到首次真正提问并由
+                        # cache_resource 保证后续提问直接复用。
+                        bailian, llm = load_resources()
                         result = bailian.chat([
                             *history,
                             {"role": "user", "content": question},
