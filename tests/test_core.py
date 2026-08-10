@@ -2,8 +2,11 @@
 
 用法: python tests/test_core.py
 """
+import os
 import sys
 from pathlib import Path
+from types import ModuleType
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -11,7 +14,7 @@ from core.chunking import split_by_headings
 from core.config import MAX_CHUNK_CHARS
 from core.llm import build_context, renumber_citations, stream_answer
 from core.notes import dedup_sources, notes_to_markdown, snippet
-from core.retrieval import pick_with_coverage, rrf_fuse, tokenize
+from core.retrieval import load_reranker, pick_with_coverage, rrf_fuse, tokenize
 
 
 def test_rrf_fuse():
@@ -31,6 +34,40 @@ def test_tokenize():
     assert all(t.strip() for t in tokens)
     # 标点不应出现在结果里
     assert "，" not in tokens and "！" not in tokens
+
+
+def test_load_reranker_preserves_proxy_environment():
+    """服务器可能只能经代理下载模型，加载器不能静默删除部署方配置。"""
+    fake_module = ModuleType("sentence_transformers")
+    observed = {}
+
+    class FakeCrossEncoder:
+        def __init__(self, model_name, max_length):
+            observed.update(
+                model_name=model_name,
+                max_length=max_length,
+                http_proxy=os.environ.get("HTTP_PROXY"),
+                https_proxy=os.environ.get("HTTPS_PROXY"),
+            )
+
+    fake_module.CrossEncoder = FakeCrossEncoder
+    proxy_env = {
+        "RERANK_MODEL": "test/reranker",
+        "HTTP_PROXY": "http://proxy.internal:8080",
+        "HTTPS_PROXY": "http://proxy.internal:8080",
+    }
+    with patch.dict(os.environ, proxy_env, clear=False), patch.dict(
+        sys.modules, {"sentence_transformers": fake_module}
+    ):
+        model = load_reranker()
+
+    assert isinstance(model, FakeCrossEncoder)
+    assert observed == {
+        "model_name": "test/reranker",
+        "max_length": 512,
+        "http_proxy": proxy_env["HTTP_PROXY"],
+        "https_proxy": proxy_env["HTTPS_PROXY"],
+    }
 
 
 def test_split_by_headings():

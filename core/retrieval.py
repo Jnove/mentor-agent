@@ -82,10 +82,9 @@ def load_reranker():
     if model_name.strip().lower() in ("", "off", "none", "0"):
         return None
     try:
-        # 本机代理（如 Clash）常导致 HF 下载失败，模型下载走镜像直连
+        # 部署环境可能只能通过显式代理下载模型；尊重调用方提供的代理变量。
+        # 无代理时 HF_ENDPOINT 仍默认走镜像，已有本地模型路径也不受影响。
         os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-        for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
-            os.environ.pop(key, None)
         from sentence_transformers import CrossEncoder
 
         return CrossEncoder(model_name, max_length=512)
