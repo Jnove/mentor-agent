@@ -1,0 +1,18 @@
+# 将域名替换后安装到 /etc/caddy/Caddyfile。
+mentor.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8501
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
+
+# 测试环境建议增加额外访问控制，只允许项目组访问。
+staging-mentor.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8502
+}

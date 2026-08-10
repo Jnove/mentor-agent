@@ -1,13 +1,21 @@
-FROM python:3.12-slim
+ARG PYTHON_IMAGE=python:3.12.13-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b
+FROM ${PYTHON_IMAGE}
+
+ARG APP_VERSION=dev
+
+LABEL org.opencontainers.image.title="mentor-agent" \
+      org.opencontainers.image.version="${APP_VERSION}"
 
 WORKDIR /app
 
-# 先装 CPU 版 torch：默认源的 torch 带 CUDA（大 3GB+，服务器多半没 GPU）。
-# 先装好后，下面 requirements 里 sentence-transformers 检测到 torch 已满足就不会再拉。
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+# 先装锁定版本的 CPU-only torch：PyPI 默认构建可能拉入 CUDA 运行库。
+# requirements.lock 中同样锁定 torch==2.13.0；这里预装后，哈希安装阶段会直接复用。
+RUN python -m pip install --no-cache-dir \
+    torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements.lock ./
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock \
+    && python -m pip check
 
 COPY core/ core/
 COPY scripts/ scripts/
@@ -17,6 +25,8 @@ COPY app.py ingest.py KB_FORMAT.md ./
 
 # 模型缓存固定到 /root/.cache/huggingface，由 compose 挂成卷，换镜像不用重新下载
 ENV HF_HOME=/root/.cache/huggingface \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
     STREAMLIT_SERVER_HEADLESS=true \
     STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 

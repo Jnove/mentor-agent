@@ -1,9 +1,12 @@
+# 直接依赖源清单；生产/CI 安装 requirements.lock，升级后用 pip-compile 重新生成锁文件。
 chromadb>=0.5
 sentence-transformers>=3.0
 python-frontmatter>=1.1
 openai>=1.30
 httpx>=0.27
 streamlit>=1.59,<2
+# Streamlit 在 Linux 上声明 watchdog；pip-compile 在 macOS 生成锁文件时不会自动收录。
+watchdog==6.0.0; sys_platform == "linux"
 python-dotenv>=1.0
 jieba>=0.42
 rank_bm25>=0.2

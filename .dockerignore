@@ -9,6 +9,7 @@ docs
 mentor
 logs
 tests
+deploy
 .env
 .env.example
 Dockerfile

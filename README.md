@@ -25,16 +25,19 @@ mentor-agent/
 ├── .env.example          # 配置模板，复制为 .env 后填写
 ├── DEPLOY.md             # 服务器部署指南（Docker / 源码 + systemd）
 ├── Dockerfile            # 配套 compose.yaml 使用，见 DEPLOY.md
-└── requirements.txt
+├── requirements.txt      # 直接依赖源清单
+├── requirements.lock     # Python 3.12 生产/CI 哈希锁文件
+└── deploy/               # 生产配置模板、Caddy 与运维手册
 ```
 
 ## 快速开始
 
 #### 1.安装依赖
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.lock
 ```
-> 这里建议使用虚拟环境
+> 这里建议使用虚拟环境。修改依赖时改 `requirements.txt` 并重新生成 lock，
+> 不要直接手改 `requirements.lock`。
 #### 2. 配置：复制 .env.example 为 .env，填入 API Key（Windows 直接复制粘贴改名即可）
 >    LLM_API_KEY / LLM_BASE_URL / LLM_MODEL，任何 OpenAI 兼容接口都行。.env 还需配置 AUTH_SECRET（生成方式见 .env.example）；SMTP 留空则验证码打印在控制台（开发模式）。
 
@@ -66,6 +69,7 @@ bge-reranker-base（约 1.1GB，可在 .env 里设 `RERANK_MODEL=off` 跳过）�
 代码会自动绕开代理直连镜像。
 
 > 部署到 Linux 服务器（Docker 或源码 + systemd）见 [DEPLOY.md](DEPLOY.md)。
+> 上线预检、环境隔离、备份恢复和回滚流程见 [deploy/OPERATIONS.md](deploy/OPERATIONS.md)。
 
 ## 检索管线
 
