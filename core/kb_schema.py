@@ -270,3 +270,17 @@ def validate_metadata(meta: dict) -> ValidationResult:
         result.warnings.append("student_guide 通常应使用 authority_level: student")
 
     return result
+
+
+def is_publishable(meta: dict, *, include_needs_review: bool = False) -> bool:
+    """判断一篇已通过 schema 校验的文档能否进入索引。
+
+    生产默认只允许人工核验且仍有效的文档。开发/审核环境可通过显式 CLI 参数临时
+    包含 needs_review；rejected 或 valid:false 在任何模式下都不能发布。
+    """
+    if meta.get("valid") is not True:
+        return False
+    status = meta.get("review_status")
+    return status == "verified" or (
+        include_needs_review and status == "needs_review"
+    )

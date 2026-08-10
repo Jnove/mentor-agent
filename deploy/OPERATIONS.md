@@ -27,7 +27,7 @@
 ## 3. 首次部署
 
 ```bash
-git clone https://github.com/Jnove/mentor-agent.git /opt/mentor-agent-production
+git clone --recurse-submodules https://github.com/Jnove/mentor-agent.git /opt/mentor-agent-production
 cd /opt/mentor-agent-production
 cp deploy/production.env.example .env
 chmod 600 .env
@@ -40,7 +40,8 @@ docker compose up -d
 docker compose ps
 ```
 
-预检通过前禁止执行生产发布。真实知识库不在 Git 中，必须先由1号/2号提供审核后的版本。
+预检和治理门禁通过前禁止执行生产发布。知识库由独立子模块固定版本；生产只接纳
+1号/2号审核为 `verified` 的正式目录文档。
 
 ## 4. 域名与 HTTPS
 

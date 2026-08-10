@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -33,6 +35,12 @@ jobs:
           EMBED_BACKEND: hash
         run: |
           python tests/test_core.py
+          python tests/test_bst.py
+          python tests/test_kb_schema.py
+          python tests/test_kb_paths.py
+          python tests/test_config_paths.py
+          python tests/test_govern_kb.py
+          python tests/test_ingest.py
           python tests/test_retrieval.py
           python tests/test_auth.py
           python tests/test_cookie_gate.py

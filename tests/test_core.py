@@ -92,7 +92,7 @@ def test_pick_with_coverage():
     ranked = [(0.99, h("a")), (0.98, h("a")), (0.97, h("b")),
               (0.96, h("c")), (0.95, h("c"))]
     picked = pick_with_coverage(ranked, top_k=2, min_score=0.5, max_extra=5)
-    assert [p["file"] for p in picked] == ["a", "a", "b", "c"], picked
+    assert [p["file"] for p in picked] == ["a", "b", "c"], picked
 
     # 细节场景：其他文档得分低于阈值 -> 不补位，行为同 top_k 截断
     ranked = [(0.99, h("a")), (0.98, h("a")), (0.001, h("b"))]

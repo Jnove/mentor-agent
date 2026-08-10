@@ -34,7 +34,8 @@ git clone <仓库地址> mentor-agent && cd mentor-agent
 cp deploy/production.env.example .env && chmod 600 .env
 vim .env
 
-# 3. 同步审核后的正式 knowledge_base/，然后执行发布门禁
+# 3. 检出主仓库固定的知识库版本，然后执行发布门禁
+git submodule update --init --recursive
 python3 scripts/deploy_preflight.py --mode production --env-file .env --min-docs 100
 
 # 4. 构建并预下载模型（首次拉 CPU 版 torch + 模型，约几分钟）
@@ -43,7 +44,7 @@ docker compose run --rm app python scripts/prewarm_models.py
 
 # 5. 先审计知识库（knowledge_base/ 里要先有文档）
 docker compose run --rm app python scripts/govern_kb.py
-# 只有 errors=0 才继续
+# 只有退出码为 0 且 release_ready=true 才继续
 
 # 6. 建库
 docker compose run --rm app python ingest.py
@@ -73,7 +74,7 @@ docker compose run --rm app python scripts/make_admin.py 你的邮箱@zju.edu.cn
 
 | 场景 | 操作 |
 |------|------|
-| 数据组更新了文档 | 更新宿主机 `knowledge_base/` → 运行 `scripts/govern_kb.py` 审计 → `docker compose run --rm app python ingest.py` → 重启 app |
+| 数据组更新了文档 | 更新主仓库固定的知识库子模块 commit → 运行 `scripts/govern_kb.py` 审计 → `docker compose run --rm app python ingest.py` → 重启 app |
 | 换了 embedding 模型 | 同上，但 ingest 加 `--rebuild` 全量重建 |
 | 更新代码 | `git pull && docker compose up -d --build` |
 | 看日志 | `docker compose logs -f app` |

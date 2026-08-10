@@ -10,9 +10,14 @@ from __future__ import annotations
 import argparse
 import re
 import stat
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.kb_paths import count_ignored_markdown, iter_published_markdown
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,26 @@ def _placeholder(value: str) -> bool:
 def _host_is_local(url: str) -> bool:
     host = (urlparse(url).hostname or "").lower()
     return host in {"localhost", "127.0.0.1", "::1", "host.docker.internal"}
+
+
+def _release_flags(path: Path) -> tuple[bool, str]:
+    """用标准库读取发布门禁所需的 valid/review_status 两个 front matter 字段。"""
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except OSError:
+        return False, ""
+    if not lines or lines[0].strip() != "---":
+        return False, ""
+    values: dict[str, str] = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if ":" not in line or line[:1].isspace():
+            continue
+        key, value = line.split(":", 1)
+        if key in {"valid", "review_status"}:
+            values[key] = value.split(" #", 1)[0].strip().strip("\"'")
+    return values.get("valid", "").lower() == "true", values.get("review_status", "")
 
 
 def validate(env: dict[str, str], root: Path, mode: str,
@@ -180,11 +205,19 @@ def validate(env: dict[str, str], root: Path, mode: str,
         result(port_ok, "APP_PORT", "监听端口有效", "必须配置合法的本机监听端口")
 
     kb_dir = root / "knowledge_base"
-    docs = sorted(kb_dir.rglob("*.md")) if kb_dir.is_dir() else []
-    real_docs = [p for p in docs if "示例" not in p.name]
-    result(len(real_docs) >= min_docs, "knowledge_base",
-           f"发现 {len(real_docs)} 篇非示例文档",
-           f"只有 {len(real_docs)} 篇非示例文档，发布门槛为 {min_docs}")
+    docs = iter_published_markdown(kb_dir) if kb_dir.is_dir() else []
+    statuses = [(path, *_release_flags(path)) for path in docs]
+    release_docs = [path for path, valid, status in statuses
+                    if valid and status == "verified"]
+    blocked = sum(valid and status == "needs_review"
+                  for _, valid, status in statuses)
+    ignored = count_ignored_markdown(kb_dir) if kb_dir.is_dir() else 0
+    result(len(release_docs) >= min_docs, "knowledge_base",
+           (f"发现 {len(release_docs)} 篇 verified 可发布文档；"
+            f"隔离 needs_review {blocked} 篇、非正式目录 {ignored} 篇"),
+           (f"只有 {len(release_docs)} 篇 verified 可发布文档，"
+            f"发布门槛为 {min_docs}；隔离 needs_review {blocked} 篇、"
+            f"非正式目录 {ignored} 篇"))
 
     lock_path = root / "requirements.lock"
     lock_text = lock_path.read_text(encoding="utf-8") if lock_path.is_file() else ""
