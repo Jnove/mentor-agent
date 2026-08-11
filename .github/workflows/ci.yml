@@ -25,7 +25,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
+      - name: Resolve pinned knowledge revision
+        id: knowledge-revision
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD:knowledge_base)" >> "$GITHUB_OUTPUT"
+      - name: Require private knowledge deploy key
+        shell: bash
+        env:
+          KB_DEPLOY_KEY: ${{ secrets.KB_DEPLOY_KEY }}
+        run: |
+          if [[ -z "$KB_DEPLOY_KEY" ]]; then
+            echo "::error::Configure the read-only KB_DEPLOY_KEY repository secret to checkout Jnove/mentor-agent-kb."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          repository: Jnove/mentor-agent-kb
+          ref: ${{ steps.knowledge-revision.outputs.sha }}
+          path: knowledge_base
+          ssh-key: ${{ secrets.KB_DEPLOY_KEY }}
+          persist-credentials: false
       - name: Verify pinned knowledge submodule
         shell: bash
         run: |
@@ -117,7 +136,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Build image from the locked dependency set
         run: |
           docker build \
