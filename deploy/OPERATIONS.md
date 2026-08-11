@@ -42,6 +42,12 @@ docker compose up -d
 docker compose ps
 ```
 
+若宿主机能访问模型网关、Docker bridge 却持续超时，Linux 服务器可在所有 Compose 命令中
+叠加 `-f compose.yaml -f deploy/compose.host-network.yaml`。该 override 复用宿主机路由，
+同时强制 Streamlit 继续只监听 `127.0.0.1:${APP_PORT}`；应用仍只能经 Caddy 访问。
+启用前后都应运行 `docker compose ... config --quiet` 并用 `ss -ltn` 确认 8501/8502
+没有监听在 `0.0.0.0` 或 `[::]`。这只用于明确确认 bridge 路由异常的服务器。
+
 预检和治理门禁通过前禁止执行生产发布。知识库由独立子模块固定版本；生产只接纳
 1号/2号审核为 `verified` 的正式目录文档。
 
