@@ -29,6 +29,8 @@ def load_docs(*, include_needs_review: bool = False, kb_dir=KB_DIR):
     """返回可发布文档；正式目录中的 schema 错误会阻止整次入库。"""
     docs = []
     errors = []
+    skipped_invalid = 0
+    skipped_unverified = 0
     for path in iter_published_markdown(kb_dir):
         try:
             raw = path.read_bytes()
@@ -43,16 +45,23 @@ def load_docs(*, include_needs_review: bool = False, kb_dir=KB_DIR):
         for warning in result.warnings:
             print(f"[警告] {path.name}: {warning}")
         if post.get("valid") is False or post.get("review_status") == "rejected":
-            print(f"[跳过] {path.name} 已标记失效")
+            skipped_invalid += 1
             continue
         if not is_publishable(post.metadata, include_needs_review=include_needs_review):
-            print(f"[跳过] {path.name} 尚未人工核验")
+            skipped_unverified += 1
             continue
         docs.append((path, post, hashlib.sha256(raw + _CHUNK_STAMP).hexdigest()))
     if errors:
         for error in errors:
             print(f"[错误] {error}")
         raise SystemExit(f"知识库校验失败：{len(errors)} 篇文档不符合 KB_FORMAT.md v2")
+    skipped = []
+    if skipped_invalid:
+        skipped.append(f"失效或拒绝 {skipped_invalid} 篇")
+    if skipped_unverified:
+        skipped.append(f"尚未人工核验 {skipped_unverified} 篇")
+    if skipped:
+        print(f"[跳过汇总] {'；'.join(skipped)}")
     return docs
 
 

@@ -1,6 +1,8 @@
 """入库发布状态门禁测试。"""
 import sys
 import tempfile
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -55,8 +57,13 @@ def test_load_docs_defaults_to_verified_only():
         _write(root, "zju-welcome/raw.md", "没有 front matter")
         _write(root, "staging/bad.md", "也没有 front matter")
 
-        strict = ingest.load_docs(kb_dir=root)
+        output = StringIO()
+        with redirect_stdout(output):
+            strict = ingest.load_docs(kb_dir=root)
         assert [path.name for path, _, _ in strict] == ["verified.md"]
+        log = output.getvalue()
+        assert "[跳过汇总] 失效或拒绝 1 篇；尚未人工核验 1 篇" in log
+        assert "review.md" not in log and "rejected.md" not in log
 
         review = ingest.load_docs(include_needs_review=True, kb_dir=root)
         assert {path.name for path, _, _ in review} == {"verified.md", "review.md"}
