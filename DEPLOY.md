@@ -117,6 +117,10 @@ python ingest.py
 
 ### systemd 守护（开机自启 + 崩溃重启）
 
+生产环境优先基于仓库的 `deploy/mentor-agent.service` 修改路径和用户；它还包含回环监听、
+只读系统目录和最小可写路径。下面是结构说明用的简化示例。定时一致性备份、本机健康检查、
+静态证书到期检查及安装顺序见 `deploy/OPERATIONS.md` 的 6.1 和 7.1 节。
+
 `/etc/systemd/system/mentor-agent.service`（路径按实际部署位置改）：
 
 ```ini

@@ -1,0 +1,18 @@
+[Unit]
+Description=Check Mentor Agent static TLS certificate expiry
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=caddy
+Group=caddy
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=-/etc/mentor-agent/ops.env
+ExecStart=/usr/bin/python3 /usr/local/libexec/mentor-agent/ops_cert_check.py
+TimeoutStartSec=15s
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+LockPersonality=true

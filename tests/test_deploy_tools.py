@@ -1,15 +1,25 @@
 """部署预检、备份和安全恢复工具的纯标准库测试。"""
 import os
 import stat
+import subprocess
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.deploy_preflight import load_dotenv_file, validate
 from scripts.ops_backup import create_backup
+from scripts.ops_cert_check import CertificateCheckError, check_certificate
+from scripts.ops_health_check import HealthCheckError, check_health, validate_health_url
 from scripts.ops_restore import restore_backup
+from scripts.ops_systemd_backup import (
+    BackupConfig,
+    BackupCycleError,
+    exclusive_lock,
+    run_backup_cycle,
+)
 from scripts.smoke_test import normalize_base_url
 
 
@@ -123,6 +133,236 @@ def test_backup_and_restore_to_empty_directory():
             assert False, "禁止覆盖非空目录"
         except ValueError:
             pass
+
+
+class _FakeSystemdRunner:
+    def __init__(self, *, state: str = "active", backup_returncode: int = 0):
+        self.state = state
+        self.backup_returncode = backup_returncode
+        self.calls: list[list[str]] = []
+
+    def __call__(self, args, *, check, text, capture_output):  # noqa: ANN001
+        assert check is False
+        assert text is True
+        command = list(args)
+        self.calls.append(command)
+        if command[:2] == ["/systemctl", "is-active"]:
+            return subprocess.CompletedProcess(
+                command,
+                0 if self.state == "active" else 3,
+                stdout=f"{self.state}\n",
+                stderr="",
+            )
+        if command[:2] == ["/systemctl", "stop"]:
+            self.state = "inactive"
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:2] == ["/systemctl", "start"]:
+            self.state = "active"
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        return subprocess.CompletedProcess(
+            command,
+            self.backup_returncode,
+            stdout="",
+            stderr="backup failed" if self.backup_returncode else "",
+        )
+
+
+def _backup_config(base: Path) -> BackupConfig:
+    root = base / "app"
+    output = base / "backups"
+    root.mkdir()
+    output.mkdir()
+    script = root / "ops_backup.py"
+    script.write_text("# test\n", encoding="utf-8")
+    return BackupConfig(
+        service="mentor-agent.service",
+        root=root,
+        output_dir=output,
+        backup_script=script,
+        python="/python",
+        # root（例如容器内测试）必须显式降权；普通 CI 用户可直接运行假归档命令。
+        run_as_user="nobody" if os.geteuid() == 0 else "",
+        systemctl="/systemctl",
+        runuser="/runuser",
+        lock_file=base / "backup.lock",
+    )
+
+
+def test_systemd_backup_restores_active_service_on_success_and_failure():
+    with tempfile.TemporaryDirectory() as tmp:
+        config = _backup_config(Path(tmp))
+        runner = _FakeSystemdRunner()
+        run_backup_cycle(config, runner=runner)
+        assert runner.state == "active"
+        assert ["/systemctl", "stop", config.service] in runner.calls
+        assert ["/systemctl", "start", config.service] in runner.calls
+
+        failing = _FakeSystemdRunner(backup_returncode=7)
+        try:
+            run_backup_cycle(config, runner=failing)
+            assert False, "归档失败必须返回错误"
+        except BackupCycleError:
+            pass
+        assert failing.state == "active", "归档失败后仍须恢复原本 active 的服务"
+        assert ["/systemctl", "start", config.service] in failing.calls
+
+
+def test_systemd_backup_keeps_originally_stopped_service_stopped():
+    with tempfile.TemporaryDirectory() as tmp:
+        config = _backup_config(Path(tmp))
+        runner = _FakeSystemdRunner(state="inactive")
+        run_backup_cycle(config, runner=runner)
+        assert runner.state == "inactive"
+        assert not [call for call in runner.calls if call[:2] == ["/systemctl", "stop"]]
+        assert not [call for call in runner.calls if call[:2] == ["/systemctl", "start"]]
+
+
+def test_systemd_backup_refuses_unknown_state_and_concurrent_lock():
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        config = _backup_config(base)
+        runner = _FakeSystemdRunner(state="activating")
+        try:
+            run_backup_cycle(config, runner=runner)
+            assert False, "无法确认停止状态时必须安全失败"
+        except BackupCycleError:
+            pass
+        assert len(runner.calls) == 1
+
+        root_config = replace(config, run_as_user="root")
+        try:
+            run_backup_cycle(root_config, runner=_FakeSystemdRunner())
+            assert False, "归档进程不得以 UID 0 运行"
+        except ValueError:
+            pass
+
+        with exclusive_lock(config.lock_file):
+            try:
+                with exclusive_lock(config.lock_file):
+                    assert False, "并发备份必须被锁拒绝"
+            except BackupCycleError:
+                pass
+
+
+class _FakeResponse:
+    def __init__(self, status: int, body: bytes):
+        self.status = status
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):  # noqa: ANN001
+        return False
+
+    def read(self, limit: int) -> bytes:
+        return self.body[:limit]
+
+
+class _FakeOpener:
+    def __init__(self, status: int = 200, body: bytes = b"ok"):
+        self.response = _FakeResponse(status, body)
+
+    def open(self, request, timeout):  # noqa: ANN001
+        assert request.full_url.startswith("http://127.0.0.1:")
+        assert 0 < timeout <= 60
+        return self.response
+
+
+def test_local_health_check_is_loopback_only_and_checks_body():
+    status, elapsed = check_health(
+        "http://127.0.0.1:8501/_stcore/health",
+        opener=_FakeOpener(body=b"OK"),
+    )
+    assert status == 200 and elapsed >= 0
+    try:
+        validate_health_url("https://mentor.example.com/_stcore/health")
+        assert False, "同机健康检查不得访问非回环地址"
+    except ValueError:
+        pass
+    try:
+        check_health(
+            "http://127.0.0.1:8501/_stcore/health",
+            opener=_FakeOpener(body=b"unexpected"),
+        )
+        assert False, "健康响应缺少预期文本时必须失败"
+    except HealthCheckError:
+        pass
+
+
+class _FakeOpenSSLRunner:
+    def __init__(self, *, expiring: bool = False, parse_error: bool = False):
+        self.expiring = expiring
+        self.parse_error = parse_error
+        self.calls: list[list[str]] = []
+
+    def __call__(self, args, *, check, text, capture_output):  # noqa: ANN001
+        assert check is False and text is True and capture_output is True
+        command = list(args)
+        self.calls.append(command)
+        if "-subject" in command:
+            return subprocess.CompletedProcess(
+                command,
+                1 if self.parse_error else 0,
+                stdout="" if self.parse_error else "subject=CN=mentor.example\nnotAfter=Nov 2\n",
+                stderr="bad certificate" if self.parse_error else "",
+            )
+        return subprocess.CompletedProcess(
+            command,
+            1 if self.expiring else 0,
+            stdout="",
+            stderr="",
+        )
+
+
+def test_certificate_check_fails_closed_for_expiry_or_parse_error():
+    with tempfile.TemporaryDirectory() as tmp:
+        cert = Path(tmp) / "fullchain.pem"
+        cert.write_text("dummy", encoding="utf-8")
+        runner = _FakeOpenSSLRunner()
+        summary = check_certificate(cert, warn_days=30, runner=runner)
+        assert "mentor.example" in summary
+        checkend = [call for call in runner.calls if "-checkend" in call][0]
+        assert str(30 * 24 * 60 * 60) in checkend
+
+        for failing in (
+            _FakeOpenSSLRunner(expiring=True),
+            _FakeOpenSSLRunner(parse_error=True),
+        ):
+            try:
+                check_certificate(cert, runner=failing)
+                assert False, "过期窗口或解析错误必须失败"
+            except CertificateCheckError:
+                pass
+
+
+def test_systemd_ops_templates_use_environment_file_and_safe_timers():
+    deploy = Path(__file__).resolve().parents[1] / "deploy"
+    services = (
+        "mentor-agent-backup.service",
+        "mentor-agent-health.service",
+        "mentor-agent-cert-check.service",
+    )
+    timers = (
+        "mentor-agent-backup.timer",
+        "mentor-agent-health.timer",
+        "mentor-agent-cert-check.timer",
+    )
+    for name in services:
+        text = (deploy / name).read_text(encoding="utf-8")
+        assert "EnvironmentFile=-/etc/mentor-agent/ops.env" in text
+        assert "ExecStart=/usr/bin/python3 /usr/local/libexec/mentor-agent/" in text
+        assert "${MENTOR_ROOT}/scripts/" not in text
+    backup_service = (deploy / "mentor-agent-backup.service").read_text(encoding="utf-8")
+    assert "ProtectSystem=strict" in backup_service
+    assert "ReadWritePaths=/srv/mentor-backups /run/lock" in backup_service
+    for name in timers:
+        text = (deploy / name).read_text(encoding="utf-8")
+        assert "WantedBy=timers.target" in text
+    backup_timer = (deploy / "mentor-agent-backup.timer").read_text(encoding="utf-8")
+    cert_timer = (deploy / "mentor-agent-cert-check.timer").read_text(encoding="utf-8")
+    assert "Persistent=true" in backup_timer
+    assert "Persistent=true" in cert_timer
 
 
 if __name__ == "__main__":
