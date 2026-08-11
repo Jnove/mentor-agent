@@ -1,11 +1,6 @@
 ARG PYTHON_IMAGE=python:3.12.13-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b
 FROM ${PYTHON_IMAGE}
 
-ARG APP_VERSION=dev
-
-LABEL org.opencontainers.image.title="mentor-agent" \
-      org.opencontainers.image.version="${APP_VERSION}"
-
 WORKDIR /app
 
 # 先装锁定版本的 CPU-only torch：PyPI 默认构建可能拉入 CUDA 运行库。
@@ -16,6 +11,11 @@ RUN python -m pip install --no-cache-dir \
 COPY requirements.txt requirements.lock ./
 RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock \
     && python -m pip check
+
+# 把版本标签放在依赖层之后；仅 Git SHA 变化时可以继续复用耗时的依赖安装缓存。
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.title="mentor-agent" \
+      org.opencontainers.image.version="${APP_VERSION}"
 
 COPY core/ core/
 COPY scripts/ scripts/
