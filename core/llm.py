@@ -57,8 +57,17 @@ def build_context(question: str, hits: list[dict],
         for h in hits
     ]
 
+    # 目录只服务于枚举/清单问题；普通事实问题只允许引用实际检索到的正文。
+    # 否则模型可能把目录中“标题看似相关但没有正文依据”的条目当成来源；零命中
+    # 场景更可能把幻觉出的 [1] 绑定到目录第一篇完全无关的文档。
+    catalog_question = bool(re.search(
+        r"(?:有哪些|有什么|哪几|几种|多少(?:个|种|篇)?|目录|清单|列出|罗列)",
+        question,
+    ))
+    prompt_catalog = catalog if catalog_question else ()
+
     cat_lines, prev_folder = [], None
-    for m in catalog:
+    for m in prompt_catalog:
         f = str(m.get("file", ""))
         folder = f.rsplit("/", 1)[0] if "/" in f else "根目录"
         if folder != prev_folder:
@@ -93,6 +102,11 @@ def renumber_citations(answer: str, sources: list[dict]) -> tuple[str, list[tupl
     返回 (重编号后的正文, [(新编号, 来源)])；没有合法引用标记时返回 (原文, [])，
     越界编号（政策文号等普通数字）原样保留。
     """
+    # 零来源时任何 1~3 位方括号编号都不可能是本轮合法引用。直接移除，避免模型
+    # 在拒答中凭空输出 [1]；四位年份（如 [2025]）仍不受影响。
+    if not sources:
+        return _CITE.sub("", answer), []
+
     mapping: dict[int, int] = {}
     cited: list[tuple[int, dict]] = []
 

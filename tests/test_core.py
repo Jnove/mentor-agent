@@ -153,16 +153,22 @@ def test_build_context():
     ]
     prompt, sources = build_context("问?", [hit, hit], cat)
     # 同一篇文档（资料出现两次 + 目录一次）只占一个编号
-    assert len(sources) == 2 and sources[0]["title"] == "A" and sources[1]["title"] == "B"
-    assert "【知识库目录】" in prompt and "[1]《A》" in prompt and "[2]《B》" in prompt
+    assert len(sources) == 1 and sources[0]["title"] == "A"
+    assert "【知识库目录】" not in prompt and "[1]《A》" in prompt
     assert "【问题】\n问?" in prompt
     # 无目录时不输出目录段
     prompt2, _ = build_context("问?", [hit], [])
     assert "【知识库目录】" not in prompt2
-    # 检索空手而归（低分全被过滤）：给显式"无据"信号，目录仍在
+    # 检索空手而归（低分全被过滤）：给显式"无据"信号，不提供目录编号
     prompt3, sources3 = build_context("问?", [], cat)
-    assert "没有找到" in prompt3 and "【知识库目录】" in prompt3
-    assert len(sources3) == 2  # 目录来源仍参与编号
+    assert "没有找到" in prompt3 and "【知识库目录】" not in prompt3
+    assert sources3 == []  # 库外零命中时不暴露可被误绑的目录编号
+    # 明确询问目录本身时，即便检索为空也允许列举全部文档
+    prompt4, sources4 = build_context("知识库里有哪些文档？", [], cat)
+    assert "【知识库目录】" in prompt4 and len(sources4) == 2
+    # 一般枚举问题也需要目录补齐，不只限于明确提到“知识库”的问法
+    prompt5, sources5 = build_context("求是科学班有哪几种？", [hit], cat)
+    assert "【知识库目录】" in prompt5 and len(sources5) == 2
 
 
 def test_stream_answer_filters_gateway_tail():
@@ -191,6 +197,9 @@ def test_renumber_citations():
     # 完全没有标注 -> 原文不变、空列表（调用方兜底）
     text, cited = renumber_citations("没有标注", sources)
     assert text == "没有标注" and cited == []
+    # 零来源拒答中的幻觉编号必须移除；四位年份不是引用编号
+    text, cited = renumber_citations("暂无资料[1]，请以[2025]年通知为准。", [])
+    assert text == "暂无资料，请以[2025]年通知为准。" and cited == []
     # 三位数编号也要能重映射（编号空间跨资料+全库目录，早已过百）
     many = [{"title": f"S{i}"} for i in range(120)]
     text, cited = renumber_citations("依据[103]。", many)
