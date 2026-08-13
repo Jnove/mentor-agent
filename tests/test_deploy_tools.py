@@ -366,6 +366,8 @@ def test_systemd_ops_templates_use_environment_file_and_safe_timers():
     cert_timer = (deploy / "mentor-agent-cert-check.timer").read_text(encoding="utf-8")
     assert "Persistent=true" in backup_timer
     assert "Persistent=true" in cert_timer
+    caddy_production = (deploy / "Caddyfile.production").read_text(encoding="utf-8")
+    assert "protocols h1 h2" in caddy_production
 
 
 if __name__ == "__main__":

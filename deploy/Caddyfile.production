@@ -1,3 +1,11 @@
+{
+	servers {
+		# 校内服务器当前只开放 TCP 80/443；关闭无法工作的 QUIC/HTTP/3
+		# 宣告，避免每次响应都产生 Alt-Svc 错误日志。
+		protocols h1 h2
+	}
+}
+
 mentor.zjuxlab.com {
     tls /etc/caddy/certs/mentor.zjuxlab.com.fullchain.pem /etc/caddy/certs/mentor.zjuxlab.com.privkey.pem
 
