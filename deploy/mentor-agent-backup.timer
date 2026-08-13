@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Mentor Agent consistent backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 Asia/Shanghai
+RandomizedDelaySec=10m
+Persistent=true
+Unit=mentor-agent-backup.service
+
+[Install]
+WantedBy=timers.target

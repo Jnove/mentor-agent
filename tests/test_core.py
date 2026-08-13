@@ -2,8 +2,11 @@
 
 用法: python tests/test_core.py
 """
+import os
 import sys
 from pathlib import Path
+from types import ModuleType
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -11,7 +14,7 @@ from core.chunking import split_by_headings
 from core.config import MAX_CHUNK_CHARS
 from core.llm import build_context, renumber_citations, stream_answer
 from core.notes import dedup_sources, notes_to_markdown, snippet
-from core.retrieval import pick_with_coverage, rrf_fuse, tokenize
+from core.retrieval import load_reranker, pick_with_coverage, rrf_fuse, tokenize
 
 
 def test_rrf_fuse():
@@ -31,6 +34,40 @@ def test_tokenize():
     assert all(t.strip() for t in tokens)
     # 标点不应出现在结果里
     assert "，" not in tokens and "！" not in tokens
+
+
+def test_load_reranker_preserves_proxy_environment():
+    """服务器可能只能经代理下载模型，加载器不能静默删除部署方配置。"""
+    fake_module = ModuleType("sentence_transformers")
+    observed = {}
+
+    class FakeCrossEncoder:
+        def __init__(self, model_name, max_length):
+            observed.update(
+                model_name=model_name,
+                max_length=max_length,
+                http_proxy=os.environ.get("HTTP_PROXY"),
+                https_proxy=os.environ.get("HTTPS_PROXY"),
+            )
+
+    fake_module.CrossEncoder = FakeCrossEncoder
+    proxy_env = {
+        "RERANK_MODEL": "test/reranker",
+        "HTTP_PROXY": "http://proxy.internal:8080",
+        "HTTPS_PROXY": "http://proxy.internal:8080",
+    }
+    with patch.dict(os.environ, proxy_env, clear=False), patch.dict(
+        sys.modules, {"sentence_transformers": fake_module}
+    ):
+        model = load_reranker()
+
+    assert isinstance(model, FakeCrossEncoder)
+    assert observed == {
+        "model_name": "test/reranker",
+        "max_length": 512,
+        "http_proxy": proxy_env["HTTP_PROXY"],
+        "https_proxy": proxy_env["HTTPS_PROXY"],
+    }
 
 
 def test_split_by_headings():
@@ -92,7 +129,7 @@ def test_pick_with_coverage():
     ranked = [(0.99, h("a")), (0.98, h("a")), (0.97, h("b")),
               (0.96, h("c")), (0.95, h("c"))]
     picked = pick_with_coverage(ranked, top_k=2, min_score=0.5, max_extra=5)
-    assert [p["file"] for p in picked] == ["a", "a", "b", "c"], picked
+    assert [p["file"] for p in picked] == ["a", "b", "c"], picked
 
     # 细节场景：其他文档得分低于阈值 -> 不补位，行为同 top_k 截断
     ranked = [(0.99, h("a")), (0.98, h("a")), (0.001, h("b"))]
@@ -116,16 +153,22 @@ def test_build_context():
     ]
     prompt, sources = build_context("问?", [hit, hit], cat)
     # 同一篇文档（资料出现两次 + 目录一次）只占一个编号
-    assert len(sources) == 2 and sources[0]["title"] == "A" and sources[1]["title"] == "B"
-    assert "【知识库目录】" in prompt and "[1]《A》" in prompt and "[2]《B》" in prompt
+    assert len(sources) == 1 and sources[0]["title"] == "A"
+    assert "【知识库目录】" not in prompt and "[1]《A》" in prompt
     assert "【问题】\n问?" in prompt
     # 无目录时不输出目录段
     prompt2, _ = build_context("问?", [hit], [])
     assert "【知识库目录】" not in prompt2
-    # 检索空手而归（低分全被过滤）：给显式"无据"信号，目录仍在
+    # 检索空手而归（低分全被过滤）：给显式"无据"信号，不提供目录编号
     prompt3, sources3 = build_context("问?", [], cat)
-    assert "没有找到" in prompt3 and "【知识库目录】" in prompt3
-    assert len(sources3) == 2  # 目录来源仍参与编号
+    assert "没有找到" in prompt3 and "【知识库目录】" not in prompt3
+    assert sources3 == []  # 库外零命中时不暴露可被误绑的目录编号
+    # 明确询问目录本身时，即便检索为空也允许列举全部文档
+    prompt4, sources4 = build_context("知识库里有哪些文档？", [], cat)
+    assert "【知识库目录】" in prompt4 and len(sources4) == 2
+    # 一般枚举问题也需要目录补齐，不只限于明确提到“知识库”的问法
+    prompt5, sources5 = build_context("求是科学班有哪几种？", [hit], cat)
+    assert "【知识库目录】" in prompt5 and len(sources5) == 2
 
 
 def test_stream_answer_filters_gateway_tail():
@@ -154,6 +197,9 @@ def test_renumber_citations():
     # 完全没有标注 -> 原文不变、空列表（调用方兜底）
     text, cited = renumber_citations("没有标注", sources)
     assert text == "没有标注" and cited == []
+    # 零来源拒答中的幻觉编号必须移除；四位年份不是引用编号
+    text, cited = renumber_citations("暂无资料[1]，请以[2025]年通知为准。", [])
+    assert text == "暂无资料，请以[2025]年通知为准。" and cited == []
     # 三位数编号也要能重映射（编号空间跨资料+全库目录，早已过百）
     many = [{"title": f"S{i}"} for i in range(120)]
     text, cited = renumber_citations("依据[103]。", many)

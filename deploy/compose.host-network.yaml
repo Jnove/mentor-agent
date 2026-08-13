@@ -1,0 +1,20 @@
+# Linux 服务器专用：部分校网环境下 Docker bridge 无法访问模型网关。
+# host 网络可复用宿主机路由；命令必须继续只监听回环地址，禁止改成 0.0.0.0。
+services:
+  app:
+    network_mode: host
+    ports: !reset []
+    command:
+      - streamlit
+      - run
+      - app.py
+      - --server.address=127.0.0.1
+      - --server.port=${APP_PORT:-8501}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import os, urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('APP_PORT', '8501') + '/_stcore/health')

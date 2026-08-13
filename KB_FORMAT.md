@@ -123,9 +123,14 @@ python scripts/govern_kb.py
 # 迁移到 v2；仅删除内容完全一致的副本
 python scripts/govern_kb.py --apply --remove-duplicates
 
-# 校验通过后增量入库
+# 应用迁移后重新审计；只有 release_ready=true 才增量入库
+python scripts/govern_kb.py
 python ingest.py
 ```
+
+生产入库只接纳 `valid: true + review_status: verified`。`needs_review` 仅允许在
+开发/审核环境通过显式 `python ingest.py --include-needs-review` 查看。扫描范围固定为
+顶层 `FAQ/`、`政策/`、`通知/`；`staging/`、原始导入目录和未知顶层目录不会进入生产索引。
 
 验收清单：
 

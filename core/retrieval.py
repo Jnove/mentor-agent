@@ -42,36 +42,36 @@ def pick_with_coverage(ranked: list[tuple[float, dict]], top_k: int,
 
     枚举类问题（"求是科学班有哪几种"）里所有相关文档得分都接近 1，
     top_k 往往被少数几篇的多个块占满，导致 LLM 数不全——
-    第一步强制每文件最多占一块，让更多不同文档能进 top_k；
+    第一步在得分达到覆盖阈值的文档中强制每文件最多占一块，让更多不同文档能进 top_k；
     第二步用空位把高分块补回，只有一篇相关文档时行为不变；
     第三步给 top_k 之外的高分未覆盖文档补位。
     细节类问题里无关文档得分接近 0，达不到 min_score，行为不变。
     """
     picked: list[dict] = []
-    picked_ids: set[str] = set()
+    picked_objects: set[int] = set()
     covered: set[str] = set()
-    # 先收敛到每文档一块凑满 top_k，避免单文档多块占满（枚举类问题数不全的根因）
-    for _, h in ranked:
+    # 先在高分候选中收敛到每文档一块，避免单文档多块占满（枚举类问题数不全的根因）
+    for score, h in ranked:
         if len(picked) >= top_k:
             break
         f = h.get("file")
-        if f and f not in covered:
+        if score >= min_score and f and f not in covered:
             picked.append(h)
-            picked_ids.add(h.get("id"))
+            picked_objects.add(id(h))
             covered.add(f)
     # 空位按分补块：只有一篇相关文档时，该文档的高分多块仍能回到结果
     for _, h in ranked:
         if len(picked) >= top_k:
             break
-        if h.get("id") not in picked_ids:
+        if id(h) not in picked_objects:
             picked.append(h)
-            picked_ids.add(h.get("id"))
+            picked_objects.add(id(h))
     for score, h in ranked:
         if len(picked) >= top_k + max_extra:
             break
         if score >= min_score and h.get("file") not in covered:
             picked.append(h)
-            picked_ids.add(h.get("id"))
+            picked_objects.add(id(h))
             covered.add(h.get("file"))
     return picked
 
@@ -82,10 +82,9 @@ def load_reranker():
     if model_name.strip().lower() in ("", "off", "none", "0"):
         return None
     try:
-        # 本机代理（如 Clash）常导致 HF 下载失败，模型下载走镜像直连
+        # 部署环境可能只能通过显式代理下载模型；尊重调用方提供的代理变量。
+        # 无代理时 HF_ENDPOINT 仍默认走镜像，已有本地模型路径也不受影响。
         os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-        for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
-            os.environ.pop(key, None)
         from sentence_transformers import CrossEncoder
 
         return CrossEncoder(model_name, max_length=512)

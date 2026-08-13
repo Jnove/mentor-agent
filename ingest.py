@@ -8,6 +8,7 @@
 用法:
     python ingest.py               # 增量更新
     python ingest.py --rebuild     # 全量重建（换 embedding 模型后必须用这个）
+    python ingest.py --include-needs-review  # 仅开发/审核环境
 """
 import argparse
 import hashlib
@@ -17,17 +18,20 @@ import frontmatter
 
 from core.chunking import split_by_headings
 from core.config import COLLECTION, DB_DIR, KB_DIR, MAX_CHUNK_CHARS
-from core.kb_schema import validate_metadata
+from core.kb_paths import iter_published_markdown
+from core.kb_schema import is_publishable, validate_metadata
 
 # 切块配置参与 content_hash：改块长/切块算法后，普通增量 ingest 也会重切全部文档。
 _CHUNK_STAMP = f"|chunker-v2:{MAX_CHUNK_CHARS}".encode()
 
 
-def load_docs():
-    """返回有效文档；schema 错误会阻止整次入库，避免静默污染。"""
+def load_docs(*, include_needs_review: bool = False, kb_dir=KB_DIR):
+    """返回可发布文档；正式目录中的 schema 错误会阻止整次入库。"""
     docs = []
     errors = []
-    for path in sorted(KB_DIR.rglob("*.md")):
+    skipped_invalid = 0
+    skipped_unverified = 0
+    for path in iter_published_markdown(kb_dir):
         try:
             raw = path.read_bytes()
             post = frontmatter.loads(raw.decode("utf-8"))
@@ -41,13 +45,23 @@ def load_docs():
         for warning in result.warnings:
             print(f"[警告] {path.name}: {warning}")
         if post.get("valid") is False or post.get("review_status") == "rejected":
-            print(f"[跳过] {path.name} 已标记失效")
+            skipped_invalid += 1
+            continue
+        if not is_publishable(post.metadata, include_needs_review=include_needs_review):
+            skipped_unverified += 1
             continue
         docs.append((path, post, hashlib.sha256(raw + _CHUNK_STAMP).hexdigest()))
     if errors:
         for error in errors:
             print(f"[错误] {error}")
         raise SystemExit(f"知识库校验失败：{len(errors)} 篇文档不符合 KB_FORMAT.md v2")
+    skipped = []
+    if skipped_invalid:
+        skipped.append(f"失效或拒绝 {skipped_invalid} 篇")
+    if skipped_unverified:
+        skipped.append(f"尚未人工核验 {skipped_unverified} 篇")
+    if skipped:
+        print(f"[跳过汇总] {'；'.join(skipped)}")
     return docs
 
 
@@ -97,9 +111,11 @@ def make_chunks(path, post, content_hash):
     return ids, texts, metas
 
 
-def main(rebuild: bool = False):
+def main(rebuild: bool = False, *, include_needs_review: bool = False):
     # 先完整解析和校验，--rebuild 也不能因坏文档提前销毁现有索引。
-    docs = load_docs()
+    if include_needs_review:
+        print("[警告] 已显式启用 needs_review 文档；禁止将该模式用于生产发布")
+    docs = load_docs(include_needs_review=include_needs_review)
     client = chromadb.PersistentClient(path=DB_DIR)
     col = client.get_or_create_collection(COLLECTION, metadata={"hnsw:space": "cosine"})
 
@@ -183,5 +199,10 @@ def main(rebuild: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rebuild", action="store_true", help="全量重建向量库")
+    parser.add_argument(
+        "--include-needs-review",
+        action="store_true",
+        help="仅开发/审核环境：把 valid:true 的 needs_review 文档加入索引",
+    )
     args = parser.parse_args()
-    main(rebuild=args.rebuild)
+    main(rebuild=args.rebuild, include_needs_review=args.include_needs_review)

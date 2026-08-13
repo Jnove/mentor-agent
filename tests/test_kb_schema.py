@@ -4,7 +4,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.kb_schema import make_doc_id, normalize_metadata, validate_metadata
+from core.kb_schema import (
+    is_publishable,
+    make_doc_id,
+    normalize_metadata,
+    validate_metadata,
+)
 
 
 def old_meta(**overrides):
@@ -92,6 +97,20 @@ def test_publisher_college_is_not_assumed_to_be_applicable_college():
 def test_doc_id_is_stable():
     assert make_doc_id("A", "https://u") == make_doc_id("A", "https://u")
     assert make_doc_id("A", "https://u") != make_doc_id("B", "https://u")
+
+
+def test_publishable_requires_verified_and_valid():
+    assert is_publishable({"valid": True, "review_status": "verified"})
+    assert not is_publishable({"valid": True, "review_status": "needs_review"})
+    assert is_publishable(
+        {"valid": True, "review_status": "needs_review"},
+        include_needs_review=True,
+    )
+    assert not is_publishable(
+        {"valid": False, "review_status": "verified"},
+        include_needs_review=True,
+    )
+    assert not is_publishable({"valid": True, "review_status": "rejected"})
 
 
 if __name__ == "__main__":

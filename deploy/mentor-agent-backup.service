@@ -1,0 +1,25 @@
+[Unit]
+Description=Mentor Agent consistent local backup
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=-/etc/mentor-agent/ops.env
+ExecStart=/usr/bin/python3 /usr/local/libexec/mentor-agent/ops_systemd_backup.py
+TimeoutStartSec=30min
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+IOSchedulingPriority=7
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/mentor-backups /run/lock
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+LockPersonality=true
