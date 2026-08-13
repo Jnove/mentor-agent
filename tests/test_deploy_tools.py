@@ -356,6 +356,9 @@ def test_systemd_ops_templates_use_environment_file_and_safe_timers():
     backup_service = (deploy / "mentor-agent-backup.service").read_text(encoding="utf-8")
     assert "ProtectSystem=strict" in backup_service
     assert "ReadWritePaths=/srv/mentor-backups /run/lock" in backup_service
+    # backup runner 以 root 管理 systemd unit，再用 runuser 把归档阶段降权到 txc。
+    # NoNewPrivileges=true 会禁止这次 setuid，导致 timer 在停服后归档失败。
+    assert "NoNewPrivileges=true" not in backup_service
     for name in timers:
         text = (deploy / name).read_text(encoding="utf-8")
         assert "WantedBy=timers.target" in text

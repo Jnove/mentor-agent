@@ -14,7 +14,6 @@ UMask=0077
 Nice=10
 IOSchedulingClass=idle
 IOSchedulingPriority=7
-NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict
