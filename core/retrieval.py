@@ -105,7 +105,7 @@ class Retriever:
         self.col = col
         self.reranker = reranker
 
-        data = col.get(include=["documents", "metadatas"])
+        data = self._fetch_all(col)
         self.ids = data["ids"]
         self.docs = {i: d for i, d in zip(data["ids"], data["documents"])}
         self.metas = {i: m for i, m in zip(data["ids"], data["metadatas"])}
@@ -117,6 +117,22 @@ class Retriever:
             self.bm25 = BM25Okapi([tokenize(self.docs[i]) for i in self.ids])
 
         self.catalog = self._build_catalog()
+
+    def _fetch_all(self, col):
+        """全库一次 get() 在块数超过 SQLite 单查询变量上限（~32766）时崩，
+        分页拉取以支持 3 万+ 块的库。"""
+        batch = 500
+        data = {"ids": [], "documents": [], "metadatas": []}
+        while True:
+            page = col.get(
+                include=["documents", "metadatas"], limit=batch, offset=len(data["ids"])
+            )
+            data["ids"].extend(page["ids"])
+            data["documents"].extend(page["documents"])
+            data["metadatas"].extend(page["metadatas"])
+            if len(page["ids"]) < batch:
+                break
+        return data
 
     def _build_catalog(self) -> list[dict]:
         """知识库全部文档的元数据清单（按文件路径排序，同文件夹相邻），
