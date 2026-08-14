@@ -1,0 +1,11 @@
+http://mentor.zjuxlab.com {
+    encode zstd gzip
+    respond "服务正在完成生产配置，请稍后再试。" 503
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}

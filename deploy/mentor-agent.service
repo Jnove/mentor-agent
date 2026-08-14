@@ -1,0 +1,26 @@
+[Unit]
+Description=Mentor Agent Streamlit application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=txc
+Group=txc
+WorkingDirectory=/opt/mentor-agent-production
+Environment=PYTHONUNBUFFERED=1
+Environment=HF_HOME=/opt/mentor-agent-production/.cache/huggingface
+Environment=HOME=/opt/mentor-agent-production/.service-home
+ExecStart=/opt/mentor-agent-production/.venv/bin/streamlit run app.py --server.address=127.0.0.1 --server.port=8501 --server.headless=true --browser.gatherUsageStats=false
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mentor-agent-production/data /opt/mentor-agent-production/chroma_db /opt/mentor-agent-production/.cache /opt/mentor-agent-production/.service-home
+
+[Install]
+WantedBy=multi-user.target

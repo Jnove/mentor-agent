@@ -4,11 +4,25 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()  # 读取项目根目录的 .env
+ROOT = Path(__file__).resolve().parent.parent
 
-ROOT = Path(__file__).parent.parent
-KB_DIR = ROOT / "knowledge_base"
-DB_DIR = str(ROOT / "chroma_db")
+
+def _configured_path(name: str, default: Path) -> Path:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default.resolve()
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = ROOT / path
+    return path.resolve()
+
+
+# 版本化发布时 .env 和持久化数据位于 release 目录外；本地开发仍使用仓库默认路径。
+ENV_FILE = _configured_path("MENTOR_ENV_FILE", ROOT / ".env")
+load_dotenv(ENV_FILE)
+
+KB_DIR = _configured_path("MENTOR_KB_DIR", ROOT / "knowledge_base")
+DB_DIR = str(_configured_path("MENTOR_CHROMA_DIR", ROOT / "chroma_db"))
 
 COLLECTION = "senior_agent"
 TOP_K = 5           # 最终喂给 LLM 的片段数
@@ -59,7 +73,7 @@ def rerank_model() -> str:
     return os.environ.get("RERANK_MODEL", "BAAI/bge-reranker-base")
 
 
-AUTH_DB = str(ROOT / "data" / "auth.db")
+AUTH_DB = str(_configured_path("MENTOR_AUTH_DB", ROOT / "data" / "auth.db"))
 
 
 def allowed_email_domains() -> list[str]:

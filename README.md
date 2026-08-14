@@ -7,8 +7,8 @@ mentor-agent/
 ├── KB_FORMAT.md          # 知识库文档格式规范（数据组必读）
 ├── QUESTION_FORMAT.md    # 真实问题收集与评测样本规范
 ├── KB_GOVERNANCE_REPORT.md # 治理结果与人工复核队列
-├── knowledge_base/       # 数据组往这里放 markdown 文档
-├── ingest.py             # CLI：增量入库（--rebuild 全量重建）
+├── knowledge_base/       # 独立知识库子模块（正式目录 + 隔离的 staging/raw）
+├── ingest.py             # CLI：默认仅入库 verified（--rebuild 全量重建）
 ├── scripts/govern_kb.py  # schema 审计、迁移和精确去重
 ├── app.py                # 入口：登录门禁 + 页面导航
 ├── ui/                   # Streamlit 界面：问答 / 登录注册 / 用户管理
@@ -25,32 +25,39 @@ mentor-agent/
 ├── .env.example          # 配置模板，复制为 .env 后填写
 ├── DEPLOY.md             # 服务器部署指南（Docker / 源码 + systemd）
 ├── Dockerfile            # 配套 compose.yaml 使用，见 DEPLOY.md
-└── requirements.txt
+├── requirements.txt      # 直接依赖源清单
+├── requirements.lock     # Python 3.12 生产/CI 哈希锁文件
+└── deploy/               # 生产配置模板、Caddy 与运维手册
 ```
 
 ## 快速开始
 
 #### 1.安装依赖
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.lock
 ```
-> 这里建议使用虚拟环境
+> 这里建议使用虚拟环境。修改依赖时改 `requirements.txt` 并重新生成 lock，
+> 不要直接手改 `requirements.lock`。
 #### 2. 配置：复制 .env.example 为 .env，填入 API Key（Windows 直接复制粘贴改名即可）
 >    LLM_API_KEY / LLM_BASE_URL / LLM_MODEL，任何 OpenAI 兼容接口都行。.env 还需配置 AUTH_SECRET（生成方式见 .env.example）；SMTP 留空则验证码打印在控制台（开发模式）。
 
-#### 3. 数据组按 KB_FORMAT.md 往 knowledge_base/ 放文档，并先审计
+#### 3. 初始化知识库子模块，并按 KB_FORMAT.md 审计
 
 ```bash
+git submodule update --init --recursive
 python scripts/govern_kb.py
 ```
 
-只有 `errors=0` 才能进入下一步；自动采集的资料默认是 `needs_review`，不能直接标为 `verified`。
+只有 `release_ready=true` 且命令退出码为 0 才能进入下一步。生产只发布
+`valid:true + verified` 文档；自动采集的 `needs_review` 默认隔离，不能直接标为 `verified`。
 
 #### 4. 建库（增量：只处理新增/变更的文档；文档有更新就重跑）
 ```
 python ingest.py
 #    换了 embedding 模型后必须全量重建：
 # python ingest.py --rebuild
+#    仅开发/审核环境临时包含 needs_review：
+# python ingest.py --include-needs-review
 ```
 
 #### 5. 启动
@@ -66,6 +73,7 @@ bge-reranker-base（约 1.1GB，可在 .env 里设 `RERANK_MODEL=off` 跳过）�
 代码会自动绕开代理直连镜像。
 
 > 部署到 Linux 服务器（Docker 或源码 + systemd）见 [DEPLOY.md](DEPLOY.md)。
+> 上线预检、环境隔离、备份恢复和回滚流程见 [deploy/OPERATIONS.md](deploy/OPERATIONS.md)。
 
 ## 检索管线
 
