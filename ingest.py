@@ -103,13 +103,21 @@ def main(rebuild: bool = False):
     client = chromadb.PersistentClient(path=DB_DIR)
     col = client.get_or_create_collection(COLLECTION, metadata={"hnsw:space": "cosine"})
 
-    existing = col.get(include=["metadatas"])
+    # 分页拉取现有 metadata，避免全库一次 get 触发 Chroma 底层 SQLite 变量上限。
     by_file: dict[str, dict] = {}
     if not rebuild:
-        for id_, meta in zip(existing["ids"] or [], existing["metadatas"] or []):
-            meta = meta or {}
-            info = by_file.setdefault(str(meta.get("file", "")), {"hash": meta.get("content_hash"), "ids": []})
-            info["ids"].append(id_)
+        _PAGE = 1000
+        offset = 0
+        while True:
+            page = col.get(include=["metadatas"], limit=_PAGE, offset=offset)
+            ids = page["ids"] or []
+            for id_, meta in zip(ids, page["metadatas"] or []):
+                meta = meta or {}
+                info = by_file.setdefault(str(meta.get("file", "")), {"hash": meta.get("content_hash"), "ids": []})
+                info["ids"].append(id_)
+            if len(ids) < _PAGE:
+                break
+            offset += _PAGE
 
     seen = set()
     add_ids, add_texts, add_metas = [], [], []
