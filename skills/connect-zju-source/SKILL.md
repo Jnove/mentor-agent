@@ -157,4 +157,5 @@ python tests/eval_retrieval.py
 8. **Windows 非法文件名字符**：标题里可能出现 `| : * ? " < >` 等（如 physics 的 "Nature | xxx"），写文件名前必须替换，否则写入直接 OSError。`build_filename` 已内置 `_safe_filename_part`。
 9. **同源站点容器不一致**：同一站点不同栏目正文容器可能不同（如 sis 行政文件页是 PDF 附件页，无 `.wp_articlecontent`）。探索时别只看一个样本页就定 `content_selector`。
 10. **覆盖检查只对「具体 c 号」敏感**：`detail_url_pattern` 写成 `c\d+a\d+` 通用规则的站点（cs/math/css 等）会被整站视为已覆盖，`--check-coverage` 不会暴露漏栏目。给新栏目登记时尽量用具体 `c<栏目号>`，覆盖检查才有意义。
+11. **并行探测过多域名会误判"超时"**：一次性并发 urllib 探测几十个候选域名时，站点（尤其依赖 RVPN 的办公网）会被误判成"挂掉/超时"，其实是被并发请求打崩或响应变慢。**域名确认后必须单点重测**再下结论——生科办公网 `www.cls.office.zju.edu.cn` 就被并行探测误判过，用户单点确认实际可达。批量探域只用于"筛候选"，定性前逐个复核。
 
