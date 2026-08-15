@@ -3,3 +3,4 @@
 #   python -m playwright install chromium
 playwright>=1.40
 pypdf>=4.0
+rapidocr>=3.0

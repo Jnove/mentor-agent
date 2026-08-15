@@ -47,6 +47,11 @@ JS_MD = r"""
   const lines = [];
   const FILE_EXT = /\.(docx?|xlsx?|pptx?|pdf|zip|rar|7z|wps)(\?|#|$)/i;
   const isFile = (h) => { try { return FILE_EXT.test(new URL(h, document.baseURI).pathname); } catch(e){ return false; } };
+  function absImgSrc(n) {  // src 相对路径转绝对；取不到返回 ''（保留 [图片] 占位降噪）
+    const src = n.getAttribute('src') || '';
+    if (!src) return '';
+    try { return new URL(src, document.baseURI).href; } catch(e){ return ''; }
+  }
   function renderInline(node) {
     let out = '';
     for (const n of node.childNodes) {
@@ -62,7 +67,8 @@ JS_MD = r"""
           else { out += t; }
         } else if (tag === 'IMG') {
           const alt = (n.getAttribute('alt') || '').trim();
-          if (alt) out += '[图片：' + alt + ']';   // 空 alt 多为装饰性图标，跳过降噪
+          const abs = absImgSrc(n);
+          if (alt) out += (abs ? '![图片：' + alt + '](' + abs + ')' : '[图片：' + alt + ']');   // 空 alt 多为装饰性图标，跳过降噪
         } else if (tag === 'BR') { out += '\n'; }
         else { out += renderInline(n); }
       }
@@ -104,7 +110,21 @@ JS_MD = r"""
       const raw = m ? decodeURIComponent(m[1]) : src;
       if (raw) { try { lines.push('@PDFIFRAME@ ' + new URL(raw, document.baseURI).href); } catch(e) {} }
     }
-    else if (tag === 'IMG') { lines.push('[图片]'); }
+    else if (tag === 'DIV' && /\bwp_pdf_player\b/.test(node.className || '')) {
+      // WebPlus 另一模板用 div.wp_pdf_player[pdfsrc] 嵌 PDF（isee 就业报告等）
+      const pdf = node.getAttribute('pdfsrc') || '';
+      if (pdf) { try { lines.push('@PDFIFRAME@ ' + new URL(pdf, document.baseURI).href); } catch(e) {} }
+    }
+    else if (tag === 'A') {
+      // 块级超链接（walk 层不经过 renderInline）：附件 → [附件：名](url)，外链 → [名](url)
+      const t = (node.innerText || '').trim().replace(/\s+/g, ' ');
+      const href = node.getAttribute('href') || '';
+      const abs = (href) ? new URL(href, document.baseURI).href : '';
+      if (href && isFile(abs)) { lines.push('[附件：' + (t || '文件') + '](' + abs + ')'); }
+      else if (/^https?:/.test(abs)) { lines.push('[' + (t || abs) + '](' + abs + ')'); }
+      else if (t) { lines.push(t); }
+    }
+    else if (tag === 'IMG') { const abs = absImgSrc(node); lines.push(abs ? '![图片](' + abs + ')' : '[图片]'); }
     else if (tag === 'HR') { lines.push('---'); }
     else { for (const k of kids) walk(k); }
   }
@@ -228,6 +248,21 @@ def extract_pdf_text(pdf_url: str) -> str | None:
         return None
 
 
+def _ocr_markdown(md: str, page) -> str:
+    """对 md 里的图片占位做 OCR（可选依赖 rapidocr_onnxruntime，缺装则原样返回）。"""
+    try:
+        from ocr import make_downloader, ocr_markdown_images
+    except ImportError:
+        try:
+            from scripts.ocr import make_downloader, ocr_markdown_images
+        except ImportError:
+            return md
+    try:
+        return ocr_markdown_images(md, make_downloader(page))
+    except Exception:
+        return md
+
+
 def _normalize_cookie(c: dict) -> dict | None:
     """Cookie-Editor 扩展导出格式 → Playwright add_cookies 格式；必填缺失返回 None。"""
     out: dict = {"name": str(c.get("name", "")), "value": str(c.get("value", ""))}
@@ -303,13 +338,15 @@ def discover_detail_urls(page, source: dict) -> list[str]:
     return list(dict.fromkeys(urls))  # 去重保序
 
 
-def crawl_detail(page, url: str, source: dict) -> tuple[str, str]:
+def crawl_detail(page, url: str, source: dict, ocr_enabled: bool = True) -> tuple[str, str]:
     page.goto(url, timeout=30000, wait_until="domcontentloaded")
-    page.wait_for_timeout(1500)
+    page.wait_for_timeout(300)
     sel = source.get("content_selector")
     if not page.query_selector(sel):
         raise CrawlError(f"找不到正文容器 {sel}")
     md = page.eval_on_selector(sel, JS_MD)
+    if ocr_enabled and source.get("ocr", True):
+        md = _ocr_markdown(md, page)
     title = ""
     if source.get("title_selector"):
         title = page.eval_on_selector(
@@ -356,12 +393,13 @@ def existing_content(rel: str) -> str:
 
 
 def crawl_source(page, source: dict, limit: int, dry_run: bool,
-                 existing_index: dict[str, str]) -> dict:
+                 existing_index: dict[str, str], ocr_enabled: bool = True) -> dict:
     """抓取一个来源，返回 {manifest, 摘要文本}。"""
     staging = STAGING_DIR / source["name"]
     staging.mkdir(parents=True, exist_ok=True)
     results: dict[str, dict] = {}
     errors: list[str] = []
+    source_ocr = bool(ocr_enabled and source.get("ocr", True))
 
     if source.get("detail_url_pattern"):
         try:
@@ -376,7 +414,7 @@ def crawl_source(page, source: dict, limit: int, dry_run: bool,
 
     for url in urls:
         try:
-            raw_title, md = crawl_detail(page, url, source)
+            raw_title, md = crawl_detail(page, url, source, ocr_enabled=source_ocr)
         except Exception as exc:
             errors.append(f"{url}: {exc}")
             continue
@@ -403,7 +441,7 @@ def crawl_source(page, source: dict, limit: int, dry_run: bool,
         results[rel] = {
             "status": status, "doc_id": meta["doc_id"], "title": title,
             "publish_date": date, "chars": len(body),
-            "existing": existing_rel,
+            "existing": existing_rel, "ocr": "图片OCR" in body,
         }
         if not dry_run:
             (staging / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -421,7 +459,7 @@ def crawl_source(page, source: dict, limit: int, dry_run: bool,
         manifest = {
             "source": source["name"],
             "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "results": results, "errors": errors,
+            "ocr": source_ocr, "results": results, "errors": errors,
         }
         (staging / "_manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -593,6 +631,7 @@ def main() -> None:
     ap.add_argument("--source", help="只抓指定来源（sources.yaml 的 name）")
     ap.add_argument("--all", action="store_true", help="抓全部 enabled 来源")
     ap.add_argument("--dry-run", action="store_true", help="预演，不写暂存区")
+    ap.add_argument("--no-ocr", action="store_true", help="关闭图片 OCR（默认开启）")
     ap.add_argument("--limit", type=int, default=0, help="每来源最多抓多少详情页")
     ap.add_argument("--headed", action="store_true",
                     help="有头模式（SSO 登录用；默认 headless）")
@@ -663,7 +702,8 @@ def main() -> None:
 
         page = context.new_page()
         for source in sources:
-            out = crawl_source(page, source, args.limit, args.dry_run, existing_index)
+            out = crawl_source(page, source, args.limit, args.dry_run, existing_index,
+                   ocr_enabled=not args.no_ocr)
             print(out["summary"])
         context.close()
 
