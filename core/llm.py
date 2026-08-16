@@ -1,9 +1,8 @@
 """LLM 客户端与所有提示词逻辑：回答生成、多轮问题改写、笔记要点压缩。"""
+from __future__ import annotations
+
 import os
 import re
-
-import httpx
-from openai import OpenAI
 
 from core.config import llm_model, llm_model_light
 
@@ -20,6 +19,10 @@ SYSTEM_PROMPT = """你是"学长组 Agent"，帮同学解答学校政策、通�
 
 
 def get_llm() -> OpenAI:
+    # openai/httpx 导入较重，推迟到首次调用（后台预热线程里完成），首屏脚本只导入轻量依赖
+    import httpx
+    from openai import OpenAI
+
     # 网关前置了 Cloudflare，有两道坎，都得绕：
     # 1) 默认 UA "OpenAI/Python …" 被 WAF 判为爬虫 → 403 "Your request was blocked"，
     #    改成自有标识放行。

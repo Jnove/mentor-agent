@@ -10,9 +10,10 @@
 """
 import html
 import logging
+import os
+import threading
 from datetime import date
 
-import chromadb
 import streamlit as st
 
 # Streamlit 的文件监视器会遍历 sys.modules 探测 __path__，探到 transformers 5.x 时触发它懒加载
@@ -32,17 +33,77 @@ from core.retrieval import Retriever, load_reranker
 from core.slang import expand_query
 
 
-@st.cache_resource
+_resources = None
+_resources_lock = threading.Lock()
+
+
+def _build_resources():
+    """并行加载模型 + 建检索索引（三者相互独立），缩短冷加载。"""
+    from concurrent.futures import ThreadPoolExecutor
+
+    import chromadb  # 导入较重，推迟到预热/首问时加载，首屏脚本只留轻量依赖
+
+    col = chromadb.PersistentClient(path=DB_DIR).get_collection(COLLECTION)
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        prepared_fut = ex.submit(Retriever._prepare, col)
+        embed_fut = ex.submit(get_embedder)
+        rerank_fut = ex.submit(load_reranker)
+        prepared = prepared_fut.result()
+        embed = embed_fut.result()
+        reranker = rerank_fut.result()
+    retriever = Retriever(embed, col, reranker=reranker, prepared=prepared)
+    return retriever, get_llm()
+
+
+def _ensure_resources():
+    """线程安全懒加载单例；后台预热线程与首次提问共用同一份，跨 rerun 持久。"""
+    global _resources
+    if _resources is None:
+        with _resources_lock:
+            if _resources is None:
+                _resources = _build_resources()
+    return _resources
+
+
+_prewarm_started = False
+
+
+def _maybe_prewarm() -> None:
+    """服务器启动后在后台预热检索资源；模块全局保证进程内只执行一次。
+
+    防重标志放在本模块而非 app.py：chat_page 只 import 一次，标志跨 Streamlit
+    rerun 持久；app.py 是主脚本，每轮 rerun 都会重跑，标志会被重新赋值。
+    """
+    global _prewarm_started
+    if _prewarm_started:
+        return
+    _prewarm_started = True
+    if not os.environ.get("LLM_API_KEY"):
+        return  # 未配置时首问会走 st.error，不需要预热
+
+    def worker():
+        import time
+
+        # 避开首屏渲染窗口：预热加载模型/建 BM25 会抢 import 锁和 CPU，
+        # 先让页面正常渲染，几秒后再开始后台预热
+        time.sleep(4)
+        try:
+            _ensure_resources()
+        except Exception:
+            logging.exception("prewarm 失败，首问时再加载")
+        else:
+            print("[prewarm] 检索资源已预热完成", flush=True)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
 def load_resources():
     import os
 
     if not os.environ.get("LLM_API_KEY"):
         st.error("未找到 LLM_API_KEY：请复制 .env.example 为 .env 并填入 API Key，然后重启。")
         st.stop()
-    embed = get_embedder()
-    col = chromadb.PersistentClient(path=DB_DIR).get_collection(COLLECTION)
-    retriever = Retriever(embed, col, reranker=load_reranker())
-    return retriever, get_llm()
+    return _ensure_resources()
 
 
 def note_card_html(n: dict) -> str:

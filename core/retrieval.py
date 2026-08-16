@@ -99,25 +99,34 @@ class Retriever:
     注意：ingest 之后需要重建 Retriever（重启 app）才能让 BM25 看到新文档。
     """
 
-    def __init__(self, embed, col, reranker=None):
+    def __init__(self, embed, col, reranker=None, prepared=None):
         self.embed = embed
         self.col = col
         self.reranker = reranker
+        p = prepared if prepared is not None else self._prepare(col)
+        self.ids = p["ids"]
+        self.docs = p["docs"]
+        self.metas = p["metas"]
+        self.bm25 = p["bm25"]
+        self.catalog = p["catalog"]
 
-        data = self._fetch_all(col)
-        self.ids = data["ids"]
-        self.docs = {i: d for i, d in zip(data["ids"], data["documents"])}
-        self.metas = {i: m for i, m in zip(data["ids"], data["metadatas"])}
-
-        self.bm25 = None
-        if self.ids:
+    @staticmethod
+    def _prepare(col) -> dict:
+        """重活：拉全库 + 建 BM25 + 建目录。与模型加载相互独立，可并行执行。"""
+        data = Retriever._fetch_all(col)
+        ids = data["ids"]
+        docs = {i: d for i, d in zip(ids, data["documents"])}
+        metas = {i: m for i, m in zip(ids, data["metadatas"])}
+        bm25 = None
+        if ids:
             from rank_bm25 import BM25Okapi
 
-            self.bm25 = BM25Okapi([tokenize(self.docs[i]) for i in self.ids])
+            bm25 = BM25Okapi([tokenize(docs[i]) for i in ids])
+        return {"ids": ids, "docs": docs, "metas": metas,
+                "bm25": bm25, "catalog": Retriever._build_catalog(metas)}
 
-        self.catalog = self._build_catalog()
-
-    def _fetch_all(self, col):
+    @staticmethod
+    def _fetch_all(col) -> dict:
         """全库一次 get() 在块数超过 SQLite 单查询变量上限（~32766）时崩，
         分页拉取以支持 3 万+ 块的库。"""
         batch = 500
@@ -133,11 +142,12 @@ class Retriever:
                 break
         return data
 
-    def _build_catalog(self) -> list[dict]:
+    @staticmethod
+    def _build_catalog(metas) -> list[dict]:
         """知识库全部文档的元数据清单（按文件路径排序，同文件夹相邻），
         注入 prompt 供枚举类问题数全，并参与统一的来源编号。"""
         seen: dict[str, dict] = {}
-        for m in self.metas.values():
+        for m in metas.values():
             m = m or {}
             f = str(m.get("file", ""))
             if f and f not in seen:

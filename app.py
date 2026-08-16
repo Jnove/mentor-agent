@@ -7,10 +7,10 @@ import streamlit as st
 from streamlit_cookies_controller import CookieController
 
 from core import auth, usage
-from core.config import auth_secret
+from core.config import PREWARM, auth_secret
 from ui.admin_page import render_admin
 from ui.auth_pages import COOKIE_NAME, render_auth
-from ui.chat_page import render_chat
+from ui.chat_page import _maybe_prewarm, render_chat
 from ui.theme import apply_theme
 
 st.set_page_config(page_title="学长组 Agent", page_icon="🎓", layout="wide")
@@ -19,6 +19,9 @@ apply_theme()
 auth.init_db()
 usage.init_db()
 _secret = auth_secret()  # 缺 AUTH_SECRET 在这里就报错，不带病运行
+
+if PREWARM:
+    _maybe_prewarm()
 
 
 def _known_cookies() -> dict[str, str]:

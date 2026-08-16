@@ -51,6 +51,10 @@ BST_FALLBACK = os.environ.get("BST_FALLBACK", "on").strip().lower() not in ("off
 BST_FALLBACK_SCORE = 0.3  # RAG 最高重排分低于此值才触发兜底（低于阈值说明候选不相关）
 BST_TOP_N = 4             # 兜底最多取几条（FAQ 优先，不足补资讯）
 
+# 服务器启动后在后台预热检索资源（embedding/reranker/BM25），用户首问不冷启动。
+# 设 off 关闭（如服务器内存紧张或想避免启动期 CPU 占用）。
+PREWARM = os.environ.get("PREWARM", "on").strip().lower() not in ("off", "none", "0", "false")
+
 # HF 镜像默认值（下载 embedding / reranker 模型用），在 import transformers 前生效；
 # .env / 环境变量里显式配置的值优先
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
