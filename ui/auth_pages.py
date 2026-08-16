@@ -54,6 +54,11 @@ def render_auth() -> None:
 
 
 def _render_login() -> None:
+    if st.session_state.pop("pwd_reset_ok", False):
+        st.success("密码已重设，请用新密码登录")
+    if st.session_state.get("pwd_step"):
+        _render_reset()
+        return
     with st.form("login_form"):
         email = st.text_input("邮箱")
         password = st.text_input("密码", type="password")
@@ -68,6 +73,9 @@ def _render_login() -> None:
                 st.error("账号已被禁用，请联系管理员")
             else:
                 st.error("邮箱或密码错误")
+    if st.button("忘记密码？", type="tertiary"):
+        st.session_state.pwd_step = 1
+        st.rerun()
 
 
 def _render_register() -> None:
@@ -119,3 +127,50 @@ def _render_register() -> None:
         if st.button("换个邮箱重新发送", type="tertiary"):
             st.session_state.reg_step = 1
             st.rerun()
+
+
+def _render_reset() -> None:
+    st.caption("通过注册邮箱验证身份后重设密码。")
+    if st.session_state.get("pwd_step") == 1:
+        with st.form("pwd_email_form"):
+            email = st.text_input("注册邮箱")
+            if st.form_submit_button("发送验证码", type="primary", width="stretch"):
+                email = email.strip().lower()
+                if not auth.get_user_by_email(email):
+                    st.error("该邮箱未注册")
+                else:
+                    code = auth.issue_code(email)
+                    if code is None:
+                        st.error("发送过于频繁，请 60 秒后再试")
+                    else:
+                        try:
+                            send_code(email, code)
+                        except Exception:
+                            auth.discard_code(email)
+                            st.error("邮件发送失败，请稍后再试")
+                            return
+                        st.session_state.pwd_email = email
+                        st.session_state.pwd_step = 2
+                        st.rerun()
+    else:
+        st.caption(f"验证码已发送至 {st.session_state.pwd_email}（10 分钟内有效）")
+        with st.form("pwd_code_form"):
+            code = st.text_input("6 位验证码")
+            newpwd = st.text_input("新密码（至少 8 位）", type="password")
+            if st.form_submit_button("完成重设", type="primary", width="stretch"):
+                if len(newpwd) < 8:
+                    st.error("新密码至少 8 位")
+                elif not auth.verify_code(st.session_state.pwd_email, code):
+                    st.error("验证码错误或已失效")
+                else:
+                    user = auth.get_user_by_email(st.session_state.pwd_email)
+                    if user:
+                        auth.set_password(user["id"], newpwd)
+                    st.session_state.pop("pwd_step", None)
+                    st.session_state.pop("pwd_email", None)
+                    st.session_state.pwd_reset_ok = True
+                    st.rerun()
+    if st.button("返回登录", type="tertiary"):
+        st.session_state.pop("pwd_step", None)
+        st.session_state.pop("pwd_email", None)
+        st.rerun()

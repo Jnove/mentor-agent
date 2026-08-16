@@ -295,6 +295,27 @@ def test_admin_bootstrap_on_login():
         os.unlink(db)
 
 
+def test_set_password_updates_and_verifies():
+    db = _tmp_db()
+    uid = auth.create_user("a@zju.edu.cn", "hunter2hunter2", db_path=db)
+    auth.set_password(uid, "hunter3hunter3", db_path=db)
+    u = auth.get_user(uid, db_path=db)
+    assert auth.verify_password("hunter3hunter3", u["password_hash"])
+    assert not auth.verify_password("hunter2hunter2", u["password_hash"])
+    os.unlink(db)
+
+
+def test_set_password_rejects_short():
+    db = _tmp_db()
+    uid = auth.create_user("a@zju.edu.cn", "hunter2hunter2", db_path=db)
+    try:
+        auth.set_password(uid, "short12", db_path=db)
+        assert False, "短密码应抛 ValueError"
+    except ValueError:
+        pass
+    os.unlink(db)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for fn in fns:

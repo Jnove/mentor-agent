@@ -6,7 +6,7 @@
 import streamlit as st
 from streamlit_cookies_controller import CookieController
 
-from core import auth
+from core import auth, usage
 from core.config import auth_secret
 from ui.admin_page import render_admin
 from ui.auth_pages import COOKIE_NAME, render_auth
@@ -17,6 +17,7 @@ st.set_page_config(page_title="学长组 Agent", page_icon="🎓", layout="wide"
 apply_theme()
 
 auth.init_db()
+usage.init_db()
 _secret = auth_secret()  # 缺 AUTH_SECRET 在这里就报错，不带病运行
 
 
@@ -69,6 +70,27 @@ def _logout() -> None:
     st.session_state.pending_cookie_clear = True  # 回调里组件不渲染，删除挪到下一轮
 
 
+@st.dialog("修改密码")
+def change_password_dialog() -> None:
+    u = st.session_state.user
+    with st.form("change_pwd_form"):
+        cur = st.text_input("当前密码", type="password")
+        new = st.text_input("新密码（至少 8 位）", type="password")
+        conf = st.text_input("确认新密码", type="password")
+        if st.form_submit_button("确认修改", type="primary", width="stretch"):
+            if new != conf:
+                st.error("两次输入的新密码不一致")
+            elif len(new) < 8:
+                st.error("新密码至少 8 位")
+            else:
+                stored = auth.get_user(u["id"])["password_hash"]
+                if not auth.verify_password(cur, stored):
+                    st.error("当前密码错误")
+                else:
+                    auth.set_password(u["id"], new)
+                    st.success("密码已修改")
+
+
 # 登出后的这一轮：渲染删除组件的同时必须跳过 cookie 门禁——
 # st.context 在本轮仍是旧 token，因此必须跳过门禁并删除浏览器 cookie
 _logging_out = st.session_state.pop("pending_cookie_clear", False)
@@ -91,5 +113,7 @@ if user["role"] == "admin":
 nav = st.navigation(pages)
 with st.sidebar:
     st.caption(user["email"])
+    if st.button("修改密码", width="stretch"):
+        change_password_dialog()
     st.button("退出登录", on_click=_logout, width="stretch")
 nav.run()

@@ -21,7 +21,7 @@ import streamlit as st
 logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ERROR)
 
 from core.config import BST_FALLBACK, BST_FALLBACK_SCORE, BST_TOP_N, COLLECTION, DB_DIR
-from core import bst
+from core import bst, usage
 from core.embeddings import get_embedder
 from core.llm import (
     build_context, get_llm, renumber_citations, rewrite_query, stream_answer,
@@ -85,7 +85,7 @@ def render_chat():
         )
         chat_box = st.container(height=470, key="chat_box")
         with chat_box:
-            for msg in st.session_state.messages:
+            for i, msg in enumerate(st.session_state.messages):
                 avatar = "🎓" if msg["role"] == "assistant" else None
                 with st.chat_message(msg["role"], avatar=avatar):
                     # 检索详情和来源行都存在消息里，重跑（导出/追问）后一起重绘
@@ -100,6 +100,23 @@ def render_chat():
                     st.markdown(msg["content"])
                     if msg.get("sources_md"):
                         st.caption("来源：" + msg["sources_md"])
+                    if msg["role"] == "assistant" and msg.get("log_id"):
+                        log_id = msg["log_id"]
+                        if msg.get("feedback") is None:
+                            c_up, c_down, _ = st.columns([1, 1, 7])
+                            with c_up:
+                                if st.button("帮上了", key=f"fb_{log_id}_up"):
+                                    usage.set_feedback(log_id, usage.FEEDBACK_UP)
+                                    st.session_state.messages[i]["feedback"] = usage.FEEDBACK_UP
+                                    st.rerun()
+                            with c_down:
+                                if st.button("没帮上", key=f"fb_{log_id}_down"):
+                                    usage.set_feedback(log_id, usage.FEEDBACK_DOWN)
+                                    st.session_state.messages[i]["feedback"] = usage.FEEDBACK_DOWN
+                                    st.rerun()
+                        else:
+                            fb = msg.get("feedback")
+                            st.caption("已反馈：" + ("帮上了" if fb == usage.FEEDBACK_UP else "没帮上"))
         question = st.chat_input("例如：转专业需要什么条件？")
 
     if question:
@@ -134,14 +151,13 @@ def render_chat():
                         # 百事通实时兜底：知识库无命中或最高分过低（库外问题）时，
                         # 实时检索全校常见问题 + 网页资讯补进 prompt。结果结构与
                         # RAG hits 兼容（title/source_url/… 齐全），build_context 原样处理
+                        top = max((h.get("score") or 0) for h in hits) if hits else 0
                         fallback = False
-                        if BST_FALLBACK:
-                            top = max((h.get("score") or 0) for h in hits) if hits else 0
-                            if not hits or top < BST_FALLBACK_SCORE:
-                                bst_hits = bst.bst_search(search_q, top_n=BST_TOP_N)
-                                if bst_hits:
-                                    hits = [*hits, *bst_hits]
-                                    fallback = True
+                        if BST_FALLBACK and (not hits or top < BST_FALLBACK_SCORE):
+                            bst_hits = bst.bst_search(search_q, top_n=BST_TOP_N)
+                            if bst_hits:
+                                hits = [*hits, *bst_hits]
+                                fallback = True
                     # 检索详情随消息保存，重跑后历史循环里能原样重绘。
                     # 展示的是真实检索词：含改写和黑话扩展（search 内部同一函数），
                     # 否则扩展词把意外文档拉进结果时从 UI 上查不出原因
@@ -150,6 +166,7 @@ def render_chat():
                         "n": len(hits),
                         "bst": fallback,
                         "bst_n": len(bst_hits) if fallback else 0,
+                        "top_score": top,
                         "rewritten": shown_q if shown_q != question else "",
                         "items": [
                             (
@@ -222,9 +239,14 @@ def render_chat():
                 # 零命中轮（库外问题被阈值过滤光）不覆写：中间插一个闲聊问题
                 # 不应该把上一轮的追问连续性状态清掉
                 st.session_state.last_hit_ids = [h["id"] for h in hits if "id" in h]
+            kb_hits = sum(1 for h in hits if not h.get("from_bst"))
+            log_id = usage.log_question(
+                st.session_state.user["id"], question, kb_hits, top, fallback,
+                kb_hits > 0,
+            )
             st.session_state.messages.append(
                 {"role": "assistant", "content": answer,
-                 "sources_md": caption, "retrieval": retrieval}
+                 "sources_md": caption, "retrieval": retrieval, "log_id": log_id}
             )
             with st.spinner("整理笔记中..."):
                 points = summarize_turn(llm, question, answer)

@@ -74,6 +74,7 @@ def rerank_model() -> str:
 
 
 AUTH_DB = str(_configured_path("MENTOR_AUTH_DB", ROOT / "data" / "auth.db"))
+USAGE_DB = str(_configured_path("MENTOR_USAGE_DB", ROOT / "data" / "usage.db"))
 
 
 def allowed_email_domains() -> list[str]:

@@ -128,6 +128,12 @@ def list_users(db_path: str | None = None) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def count_users(status: str = "active", db_path: str | None = None) -> int:
+    with _connect(db_path) as db:
+        row = db.execute("SELECT COUNT(*) FROM users WHERE status=?", (status,)).fetchone()
+        return row[0]
+
+
 def set_status(user_id: int, status: str, db_path: str | None = None) -> None:
     with _connect(db_path) as db:
         db.execute("UPDATE users SET status=? WHERE id=?", (status, user_id))
@@ -136,6 +142,14 @@ def set_status(user_id: int, status: str, db_path: str | None = None) -> None:
 def set_role(user_id: int, role: str, db_path: str | None = None) -> None:
     with _connect(db_path) as db:
         db.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
+
+
+def set_password(user_id: int, password: str, db_path: str | None = None) -> None:
+    if len(password) < 8:
+        raise ValueError("密码至少 8 位")
+    with _connect(db_path) as db:
+        db.execute("UPDATE users SET password_hash=? WHERE id=?",
+                   (hash_password(password), user_id))
 
 
 # ---------- 邮箱验证码 ----------
