@@ -96,7 +96,12 @@ def _render_chat_stub() -> None:
     st.markdown("chat-stub")
 
 
+def _maybe_prewarm_stub() -> None:
+    pass  # AppTest 里不真正预热（会加载模型/知识库）
+
+
 _fake_chat.render_chat = _render_chat_stub
+_fake_chat._maybe_prewarm = _maybe_prewarm_stub
 sys.modules["ui.chat_page"] = _fake_chat
 ui.chat_page = _fake_chat
 
