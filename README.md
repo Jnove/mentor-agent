@@ -83,7 +83,7 @@ bge-reranker-base（约 1.1GB，可在 .env 里设 `RERANK_MODEL=off` 跳过）�
 |---|---|
 | 权威来源（学院/部处/校级站点等，按 source_org 归一去重） | **64** |
 | 入口文档（正式发布 md，排除 staging） | **10,909** |
-| 检索块（chroma 向量库 senior_agent 集合） | **43,664** |
+| 检索块（chroma 向量库 senior_agent 集合） | **76,289** |
 
 顶层分类分布：通知 6,582 篇、FAQ 2,295 篇、政策 1,937 篇、zju-welcome 新生指引 95 篇。
 
