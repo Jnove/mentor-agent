@@ -4,7 +4,7 @@
 前提: 已运行 python ingest.py 构建向量库；首次运行加载模型约 10-30 秒。
 
 指标：
-- hit@5：期望文档出现在前 5 个结果里（按 file 子串匹配，命中任一即可）
+- hit@8：期望文档出现在前 8 个结果里（按 file 子串匹配，命中任一即可）
 - MRR：期望文档首次出现位置的倒数均值
 - 负例最高分：知识库确实没有的问题，全部候选的最高重排分——
   用来校准 config.PROMPT_MIN_SCORE（阈值应高于负例常态、远低于正例）
@@ -22,7 +22,7 @@ if hasattr(sys.stdout, "buffer"):  # Windows 控制台默认 GBK，中文会乱�
 
 # (问题, [期望命中的 file 路径子串，命中任一算对])
 # 期望子串尽量收窄到"真正能回答这个问题"的那一两篇：写宽了（如用"竺可桢学院"
-# 匹配竺院旗下 20 个文件）检索退化时 hit@5 仍是绿的，回归集就失去哨兵作用
+# 匹配竺院旗下 20 个文件）检索退化时 hit@8 仍是绿的，回归集就失去哨兵作用
 GOLDEN = [
     # —— 直白表述 ——
     # 校级《学籍管理办法》第六至十一章包含现行转专业通则；学院细则文件名
@@ -153,10 +153,10 @@ def main():
     print(f"库: {col.count()} 块 / {len(r.catalog)} 篇；"
           f"PROMPT_MIN_SCORE={PROMPT_MIN_SCORE}\n")
 
-    hits_at5, rr_sum, misses, near, top1_scores = 0, 0.0, [], [], []
+    hits_at8, rr_sum, misses, near, top1_scores = 0, 0.0, [], [], []
     for q, expects in GOLDEN:
         # top_k 放大到候选总量：拿到按重排分排序的完整候选序列。
-        # 用默认 top_k 的话第 6 位起是"覆盖补位"顺序而非分数顺序，排名会失真
+        # 用默认 top_k 的话第 9 位起是"覆盖补位"顺序而非分数顺序，排名会失真
         results = r.search(q, top_k=99, min_score=-1)
         if results and "score" in results[0]:
             top1_scores.append(results[0]["score"])
@@ -165,17 +165,17 @@ def main():
             (i + 1 for i, f in enumerate(files)
              if any(e in f for e in expects)), None,
         )
-        if rank is not None and rank <= 5:
-            hits_at5 += 1
+        if rank is not None and rank <= 8:
+            hits_at8 += 1
         if rank is not None:
             rr_sum += 1.0 / rank
-            if rank > 5:
-                near.append((q, rank))  # 差一点：在候选里但没进 top5
+            if rank > 8:
+                near.append((q, rank))  # 差一点：在候选里但没进 top8
         else:
             misses.append((q, expects, files[:3]))
 
     n = len(GOLDEN)
-    print(f"hit@5: {hits_at5}/{n} = {hits_at5 / n:.0%}   MRR: {rr_sum / n:.3f}")
+    print(f"hit@8: {hits_at8}/{n} = {hits_at8 / n:.0%}   MRR: {rr_sum / n:.3f}")
     if top1_scores:
         ts = sorted(top1_scores)
         print(f"golden top-1 重排分: min {ts[0]:.3f} / 中位 {ts[len(ts) // 2]:.3f}"
@@ -183,7 +183,7 @@ def main():
     for q, expects, top3 in misses:
         print(f"  MISS  {q}  期望{expects}\n        实际前3: {top3}")
     for q, rank in near:
-        print(f"  NEAR  {q}  期望文档排第 {rank}（在候选里但没进 top5）")
+        print(f"  NEAR  {q}  期望文档排第 {rank}（在候选里但没进 top8）")
 
     print("\n负例（最高重排分应低于 PROMPT_MIN_SCORE）：")
     neg_max = 0.0

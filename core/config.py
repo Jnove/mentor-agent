@@ -25,7 +25,7 @@ KB_DIR = _configured_path("MENTOR_KB_DIR", ROOT / "knowledge_base")
 DB_DIR = str(_configured_path("MENTOR_CHROMA_DIR", ROOT / "chroma_db"))
 
 COLLECTION = "senior_agent"
-TOP_K = 5           # 最终喂给 LLM 的片段数
+TOP_K = 8           # 最终喂给 LLM 的片段数
 CANDIDATES = 20     # 混合检索召回的候选数（重排前）
 # 块长要给 512 token 窗口留余量：bge-small-zh 嵌入和 bge-reranker 打分都在 512 处
 # 静默截断（中文约 1 字 = 1 token），而入库时每块还要拼「标题/分类/检索标签」前缀
@@ -36,7 +36,7 @@ MAX_CHUNK_CHARS = 350
 # 枚举类问题（"有哪几种"）所有相关文档得分都高，top_k 装不下会自动补齐；
 # 细节类问题无关文档得分接近 0，不触发补位，行为不变。
 COVER_MIN_SCORE = 0.5
-COVER_MAX_EXTRA = 5  # 最多补几块（总片段数 <= TOP_K + COVER_MAX_EXTRA）
+COVER_MAX_EXTRA = 3  # 最多补几块（总片段数 <= TOP_K + COVER_MAX_EXTRA）
 
 # 入围下限：重排得分（sigmoid 后 0~1）低于此值的候选不进 prompt。库外问题所有
 # 候选都接近 0，全被过滤时检索返回空，由 build_context 给 LLM 显式"无据"信号，
