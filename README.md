@@ -75,6 +75,20 @@ bge-reranker-base（约 1.1GB，可在 .env 里设 `RERANK_MODEL=off` 跳过）�
 > 部署到 Linux 服务器（Docker 或源码 + systemd）见 [DEPLOY.md](DEPLOY.md)。
 > 上线预检、环境隔离、备份恢复和回滚流程见 [deploy/OPERATIONS.md](deploy/OPERATIONS.md)。
 
+## 知识库规模
+
+截至 2026-08-16，知识库（knowledge_base 子模块，正式发布目录）规模：
+
+| 指标 | 数量 |
+|---|---|
+| 权威来源（学院/部处/校级站点等，按 source_org 归一去重） | **64** |
+| 入口文档（正式发布 md，排除 staging） | **10,909** |
+| 检索块（chroma 向量库 senior_agent 集合） | **43,664** |
+
+顶层分类分布：通知 6,582 篇、FAQ 2,295 篇、政策 1,937 篇、zju-welcome 新生指引 95 篇。
+
+重新统计：`python scripts/kb_stats.py`（来源数/入口 md 数）；块数以 `python ingest.py` 末尾打印的"库中共 N 条"为准。
+
 ## 检索管线
 
 问题 →（多轮追问先由 LLM 改写成独立问题）→ 向量召回 + BM25 关键词召回
