@@ -139,6 +139,12 @@ python ingest.py
 python tests/eval_retrieval.py
 ```
 
+> **子代理审计 keep 路径（当前主流）**：抓取后也可让子代理逐篇审计产出保留清单，
+> 写入 `data/kb_staging/audit/<site>_agentX_keep.txt`（格式见 `references/keep_format.md`），
+> 再发布：`python scripts/promote.py <site> [--categories 2|3]`（先 `--dry-run` 核对）。
+> promote 会复制暂存文件到 knowledge_base 并改 frontmatter（verified/日期/maintainer/category），
+> 输出 `data/kb_staging/_promote_<site>_final.json` 作发布凭证。之后同样跑 ingest + eval_retrieval 回归。
+
 ## 常见坑速查（都踩过，别重踩）
 
 0. **SSO 保护来源**：部分栏目详情页会跳转浙大统一身份认证。**先分清是「登录问题」还是「权限问题」**：
