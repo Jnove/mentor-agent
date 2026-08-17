@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS questions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER,                -- 提问用户（auth.users.id）
   question TEXT NOT NULL,         -- 用户原话
+  kind TEXT NOT NULL DEFAULT 'rag',   -- rag=政策 RAG 问答 / teacher=查老师卡片
   kb_hits INTEGER NOT NULL DEFAULT 0,   -- 知识库命中片段数（不含百事通）
   top_score REAL,                 -- 知识库最高重排分，reranker 不可用时为 NULL
   bst INTEGER NOT NULL DEFAULT 0, -- 是否触发百事通实时兜底
@@ -49,19 +50,34 @@ def _connect(db_path: str | None = None):
 def init_db(db_path: str | None = None) -> None:
     with _connect(db_path) as db:
         db.executescript(_SCHEMA)
+        _migrate_kind(db)
+
+
+def _migrate_kind(db) -> None:
+    """旧库升级：为 questions 补 kind 列（历史记录均为 RAG 提问，默认 'rag'）。
+
+    CREATE TABLE IF NOT EXISTS 不会给已存在的表加新列，升级前建的 usage.db
+    没有 kind，管理页 uncovered 查询会报 no such column。
+    """
+    cols = {r[1] for r in db.execute("PRAGMA table_info(questions)").fetchall()}
+    if "kind" not in cols:
+        db.execute("ALTER TABLE questions ADD COLUMN kind TEXT NOT NULL DEFAULT 'rag'")
 
 
 def log_question(user_id: int | None, question: str, kb_hits: int = 0,
                  top_score: float | None = None, bst: bool = False,
                  covered: bool = False, now: int | None = None,
-                 db_path: str | None = None) -> int:
-    """记录一次提问，返回日志 id（供反馈按钮回查）。"""
+                 kind: str = "rag", db_path: str | None = None) -> int:
+    """记录一次提问，返回日志 id（供反馈按钮回查）。
+
+    kind 区分链路：rag=政策问答（参与未覆盖统计），teacher=查老师卡片（不参与）。
+    """
     now = int(time.time()) if now is None else now
     with _connect(db_path) as db:
         cur = db.execute(
-            "INSERT INTO questions (user_id, question, kb_hits, top_score, bst, covered, created_at) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (user_id, question, kb_hits, top_score, int(bst), int(covered), now),
+            "INSERT INTO questions (user_id, question, kind, kb_hits, top_score, bst, covered, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (user_id, question, kind, kb_hits, top_score, int(bst), int(covered), now),
         )
         return cur.lastrowid
 
@@ -78,8 +94,11 @@ def set_resolved(log_id: int, resolved: bool = True, db_path: str | None = None)
 
 
 def _uncovered_cond() -> str:
-    """未覆盖 = 库外（covered=0）或 用户明确反馈没帮上（feedback=0）。"""
-    return "(covered=0 OR feedback=0)"
+    """未覆盖 = 库外（covered=0）或 用户明确反馈没帮上（feedback=0）；仅统计 RAG 链路。
+
+    老师卡片（kind='teacher'）自成功能，不混进"知识库未覆盖"——那是政策问答的度量。
+    """
+    return "(kind='rag' AND (covered=0 OR feedback=0))"
 
 
 def stats_summary(now: int | None = None, db_path: str | None = None) -> dict:

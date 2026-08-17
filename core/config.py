@@ -79,6 +79,15 @@ def rerank_model() -> str:
 
 AUTH_DB = str(_configured_path("MENTOR_AUTH_DB", ROOT / "data" / "auth.db"))
 USAGE_DB = str(_configured_path("MENTOR_USAGE_DB", ROOT / "data" / "usage.db"))
+TEACHER_DB = str(_configured_path("MENTOR_TEACHER_DB", ROOT / "data" / "teacher.db"))
+# 统一黑话表：RAG 检索黑话（type=rag，值=正式语词）与课程黑话（type=course，值=课程名列表）
+# 由 knowledge_base 子仓库跟踪，主仓库只更新 submodule 指针
+SLANG_FILE = _configured_path("MENTOR_SLANG_FILE", ROOT / "knowledge_base" / "slang.json")
+
+# 查老师：聊天里识别到「评价某老师」提问时跳过 RAG，渲染结构化教师卡片。
+# 设 off 关闭整条链路（回到纯 RAG）；TEACHER_SUMMARY 单独控制卡片里的 LLM 速评。
+TEACHER_LOOKUP = os.environ.get("TEACHER_LOOKUP", "on").strip().lower() not in ("off", "none", "0", "false")
+TEACHER_SUMMARY = os.environ.get("TEACHER_SUMMARY", "on").strip().lower() not in ("off", "none", "0", "false")
 
 
 def allowed_email_domains() -> list[str]:

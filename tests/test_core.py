@@ -207,13 +207,27 @@ def test_renumber_citations():
 
 
 def test_expand_query():
-    from core.slang import expand_query
+    import json, os, tempfile
+    from core import slang as slang_mod
 
-    assert "竺可桢学院" in expand_query("竺院是干什么的")
-    assert "校园卡" in expand_query("一卡通丢了怎么办")
-    # 未命中原样返回；正式名词已在 query 里不重复追加
-    assert expand_query("转专业需要什么条件") == "转专业需要什么条件"
-    assert expand_query("竺可桢学院怎么样").count("竺可桢学院") == 1
+    fd, path = tempfile.mkstemp(suffix=".json"); os.close(fd)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({
+            "竺院": {"type": "rag", "value": "竺可桢学院"},
+            "一卡通": {"type": "rag", "value": "校园卡"},
+            "fds": {"type": "course", "value": ["数据结构基础"]},  # 课程条目不参与 RAG 展开
+        }, f, ensure_ascii=False)
+    old = slang_mod.SLANG_FILE
+    slang_mod.SLANG_FILE = path
+    try:
+        assert "竺可桢学院" in slang_mod.expand_query("竺院是干什么的")
+        assert "校园卡" in slang_mod.expand_query("一卡通丢了怎么办")
+        # 未命中原样返回；正式名词已在 query 里不重复追加
+        assert slang_mod.expand_query("转专业需要什么条件") == "转专业需要什么条件"
+        assert slang_mod.expand_query("竺可桢学院怎么样").count("竺可桢学院") == 1
+    finally:
+        slang_mod.SLANG_FILE = old
+        os.unlink(path)
 
 
 def test_strip_citations():

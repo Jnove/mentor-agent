@@ -2,6 +2,7 @@
 .venv/
 chroma_db/
 data/
+!data/course_slang_candidates.md
 logs/
 __pycache__/
 mentor/

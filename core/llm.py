@@ -86,8 +86,12 @@ def build_context(question: str, hits: list[dict],
     return prompt, sources
 
 
-# 1-3 位编号：编号空间跨资料+全库目录，早已过百；[2025] 这类年份是 4 位，不会误伤
-_CITE = re.compile(r"\[(\d{1,3})\]")
+# 编号可达 4 位：编号空间跨资料+全库目录（上万篇）。越界编号（含 2025 这类年份）
+# 由 renumber_citations 的 1..len(sources) 检查原样保留，不在这里按位数误伤。
+_CITE = re.compile(r"\[(\d{1,4})\]")
+# 历史消息/拒答场景不注入全库目录，4 位编号只可能是年份（如 [2025]）；只当引用去
+# 除 1~3 位编号，避免把年份当幻觉引用删掉。
+_CITE_LEGACY = re.compile(r"\[(\d{1,3})\]")
 
 
 def strip_citations(text: str) -> str:
@@ -95,7 +99,7 @@ def strip_citations(text: str) -> str:
 
     上一轮答案里的 [2] 对应上一轮的来源表，留着会被模型照抄进新回答，
     再被本轮 renumber_citations 串号到完全不同的来源上，且越界检查发现不了。"""
-    return _CITE.sub("", text)
+    return _CITE_LEGACY.sub("", text)
 
 
 def renumber_citations(answer: str, sources: list[dict]) -> tuple[str, list[tuple[int, dict]]]:
@@ -105,10 +109,10 @@ def renumber_citations(answer: str, sources: list[dict]) -> tuple[str, list[tupl
     返回 (重编号后的正文, [(新编号, 来源)])；没有合法引用标记时返回 (原文, [])，
     越界编号（政策文号等普通数字）原样保留。
     """
-    # 零来源时任何 1~3 位方括号编号都不可能是本轮合法引用。直接移除，避免模型
-    # 在拒答中凭空输出 [1]；四位年份（如 [2025]）仍不受影响。
+    # 零来源时任何方括号编号都不可能是本轮合法引用（目录未注入、检索无命中），
+    # 直接移除像引用的 1~3 位编号，避免模型在拒答中凭空输出 [1]；四位年份不受影响。
     if not sources:
-        return _CITE.sub("", answer), []
+        return _CITE_LEGACY.sub("", answer), []
 
     mapping: dict[int, int] = {}
     cited: list[tuple[int, dict]] = []

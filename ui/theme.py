@@ -130,6 +130,49 @@ div[data-testid="stExpander"] details {
   background: rgba(255,255,254,.6); border: 1px solid rgba(154,107,47,.14); border-radius: 12px;
 }
 
+/* —— 查老师卡片 —— */
+.teacher-card {
+  background: rgba(255,255,254,.72); border: 1px solid rgba(255,255,255,.85);
+  border-left: 3px solid #9A6B2F;   /* 青铜条，区分问答的青条 */
+  border-radius: 14px; padding: .85rem 1rem .7rem; margin-bottom: .7rem;
+  box-shadow: rgba(30,41,36,.05) 0 2px 8px;
+}
+.tc-head { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .55rem; }
+.tc-name { font-family: Georgia, 'STZhongsong', 'SimSun', serif; font-size: 1.35rem; font-weight: 900; color: #22332F; }
+.tc-college {
+  background: rgba(154,107,47,.14); color: #7F5624; border-radius: 999px;
+  font-size: .72rem; font-weight: 700; padding: .05rem .55rem;
+}
+.tc-stats { display: flex; align-items: baseline; gap: 1.2rem; margin-bottom: .6rem; }
+.tc-score b { font-size: 1.6rem; font-weight: 900; color: #0F7B72; }
+.tc-score i { font-style: normal; color: #9AA39D; font-size: .8rem; }
+.tc-stat { color: #8C948F; font-size: .82rem; }
+.tc-stat b { color: #3E4A49; }
+.tc-summary { color: #3E4A49; font-size: .92rem; line-height: 1.55; margin: .1rem 0 .55rem; }
+.tc-caveat {
+  background: rgba(154,107,47,.14); color: #7F5624; border-radius: 10px;
+  font-size: .8rem; font-weight: 600; padding: .35rem .6rem; margin: .1rem 0 .55rem;
+}
+.tc-courses-title, .tc-comments-title {
+  font-size: .74rem; letter-spacing: .1em; color: #9AA39D;
+  font-weight: 700; text-transform: uppercase; margin: .45rem 0 .2rem;
+}
+.tc-course {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: .88rem; padding: .14rem 0; color: #3E4A49;
+}
+.tc-gpa { color: #0F7B72; font-weight: 700; }
+.tc-gpa em { font-style: normal; color: #9AA39D; font-size: .74rem; font-weight: 400; margin-left: .3rem; }
+.tc-comment { margin: .45rem 0; padding-bottom: .4rem; border-bottom: 1px dashed rgba(154,107,47,.16); }
+.tc-comment:last-of-type { border-bottom: none; }
+.tc-comment p { margin: 0 0 .2rem; color: #3E4A49; font-size: .9rem; line-height: 1.5; }
+.tc-meta { color: #9AA39D; font-size: .74rem; }
+.tc-vote-pos { color: #0F7B72; font-weight: 700; }
+.tc-vote-neg { color: #C0392B; font-weight: 700; }
+.tc-vote-zero { color: #9AA39D; }
+.tc-nocomment { color: #9AA39D; font-size: .85rem; margin-top: .3rem; }
+.tc-notfound, .tc-ambiguous { color: #7F5624; font-size: .9rem; line-height: 1.6; }
+
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb { background: #E3DCC8; border-radius: 4px; }
 *::-webkit-scrollbar-track { background: transparent; }

@@ -1,9 +1,9 @@
-"""管理后台页：用户管理 + 使用统计（仅 admin 导航可见）。"""
+"""管理后台页：用户管理 + 使用统计 + 黑话管理（仅 admin 导航可见）。"""
 import time
 
 import streamlit as st
 
-from core import auth, usage
+from core import auth, teachers, usage
 
 
 def _fmt(ts) -> str:
@@ -40,11 +40,80 @@ def render_admin() -> None:
         '<div class="panel-title"><span class="bar bar-bronze"></span>管理后台</div>',
         unsafe_allow_html=True,
     )
-    tab_users, tab_stats = st.tabs(["用户管理", "使用统计"])
+    tab_users, tab_stats, tab_slang = st.tabs(["用户管理", "使用统计", "黑话管理"])
     with tab_users:
         _render_users()
     with tab_stats:
         _render_stats()
+    with tab_slang:
+        _render_slang()
+
+
+def _render_slang() -> None:
+    """黑话管理：统一查看/添加/删除 RAG 检索黑话与课程黑话（knowledge_base/slang.json）。
+
+    用途分两块：type=rag 扩展检索 query（黑话→正式语词），
+    type=course 反查老师（黑话→正式课程名列表，课程须在评教课程表存在）。
+    """
+    import core.slang as slang_mod
+    all_slang = slang_mod._load_all()
+    rag = {k: v for k, v in all_slang.items() if isinstance(v, dict) and v.get("type") == "rag"}
+    course = {k: v for k, v in all_slang.items() if isinstance(v, dict) and v.get("type") == "course"}
+
+    with st.form("slang_add"):
+        c0, c1, c2 = st.columns([1, 1, 3])
+        purpose = c0.radio("用途", ["RAG 检索黑话", "课程黑话"], horizontal=True, key="slang_purpose")
+        key_in = c1.text_input("黑话词", placeholder="如 保研 / fds / 数分")
+        value_in = c2.text_input(
+            "正式写法",
+            placeholder="RAG：单个正式语词，如 推荐免试；课程：逗号分隔课程名，如 数学分析Ⅰ, 数学分析Ⅱ")
+        if st.form_submit_button("添加映射", type="primary"):
+            if purpose == "RAG 检索黑话":
+                err = slang_mod.save_rag_slang(key_in, value_in)
+                msg = f"已添加RAG黑话：{key_in} → {value_in}"
+            else:
+                courses = [c.strip() for c in value_in.split(",") if c.strip()]
+                err = teachers.save_course_slang(key_in, courses)
+                msg = f"已添加课程黑话：{key_in} → {'、'.join(courses)}"
+            if err:
+                st.error(err)
+            else:
+                st.success(msg)
+                st.rerun()
+
+    st.divider()
+
+    if not all_slang:
+        st.caption("暂无映射，可在上方添加。")
+        return
+
+    st.markdown("#### RAG 检索黑话")
+    if not rag:
+        st.caption("暂无 RAG 黑话。")
+    for key, entry in sorted(rag.items()):
+        c_info, c_del = st.columns([7, 1])
+        c_info.markdown(f"**{key}** → {entry.get('value', '')}")
+        with c_del:
+            if st.button("删除", key=f"del_rag_{key}"):
+                err = slang_mod.delete_rag_slang(key)
+                if err:
+                    st.error(err)
+                else:
+                    st.rerun()
+
+    st.markdown("#### 课程黑话")
+    if not course:
+        st.caption("暂无课程黑话。")
+    for key, entry in sorted(course.items()):
+        c_info, c_del = st.columns([7, 1])
+        c_info.markdown("**" + key + "** → " + "、".join("《%s》" % c for c in entry.get("value", [])))
+        with c_del:
+            if st.button("删除", key=f"del_course_{key}"):
+                err = teachers.delete_course_slang(key)
+                if err:
+                    st.error(err)
+                else:
+                    st.rerun()
 
 
 def _render_users() -> None:

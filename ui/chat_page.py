@@ -22,7 +22,7 @@ import streamlit as st
 logging.getLogger("streamlit.watcher.local_sources_watcher").setLevel(logging.ERROR)
 
 from core.config import BST_FALLBACK, BST_FALLBACK_SCORE, BST_TOP_N, COLLECTION, DB_DIR
-from core import bst, usage
+from core import bst, teachers, usage
 from core.embeddings import get_embedder
 from core.llm import (
     build_context, get_llm, renumber_citations, rewrite_query, stream_answer,
@@ -122,6 +122,43 @@ def note_card_html(n: dict) -> str:
     )
 
 
+def _render_course_choose(i: int, msg: dict, card: dict) -> None:
+    """数分这类一对多黑话：横向一排胶囊选项（st.pills），用户点哪门就出哪门的卡。
+
+    点选后把「点选的这门课」折叠成一条 user 消息 + 该门课的 course 卡片追加进
+    历史（选了一个 + 出一张卡，一问一答保持配平）；原消息标记 resolved，
+    此后重跑不再重复渲染这些选项。
+    """
+    courses = card.get("courses") or []
+    if not courses:
+        return
+    key = f"course_choose_{i}"
+    if msg.get("resolved"):
+        return  # 已确认，本消息只保留"请选择哪一门"的提示文本
+    if msg.get("_chosen"):
+        chosen = msg.pop("_chosen", None)
+        msg["resolved"] = True
+        st.session_state.messages.append({"role": "user", "content": chosen})
+        result = teachers.course_card(chosen)
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": teachers.render_card_html(result),
+            "sources_md": "评教社区历史评分/评论，仅供参考",
+            "retrieval": None, "card": result,
+            "log_id": usage.log_question(
+                st.session_state.user["id"], chosen, 0, None, False, False,
+                kind="teacher"),
+        })
+        st.rerun()
+    picked = st.pills(
+        "这个叫法可能对应多门课，请选择你具体要问哪一门：",
+        courses, key=f"{key}_pills", label_visibility="visible",
+    )
+    if picked:
+        msg["_chosen"] = picked
+        st.rerun()
+
+
 def render_chat():
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -158,27 +195,37 @@ def render_chat():
                                 st.caption(f"实际检索词：{r['rewritten']}")
                             for line in r["items"]:
                                 st.markdown(line)
-                    st.markdown(msg["content"])
+                    # 老师卡片（card 字段）用结构化重绘，普通消息用正文；
+                    # content 里存的也是 HTML，无 unsafe_allow_html 会变裸标签
+                    if msg.get("card"):
+                        card = msg["card"]
+                        st.markdown(teachers.render_card_html(card), unsafe_allow_html=True)
+                        # 数分这类一对多黑话：出「请确认具体哪门课」的选择器，
+                        # 确认后折叠成选课卡片，本消息不再重复渲染选择器
+                        if card.get("kind") == "course_choose":
+                            _render_course_choose(i, msg, card)
+                    else:
+                        st.markdown(msg["content"])
                     if msg.get("sources_md"):
                         st.caption("来源：" + msg["sources_md"])
                     if msg["role"] == "assistant" and msg.get("log_id"):
                         log_id = msg["log_id"]
                         if msg.get("feedback") is None:
-                            c_up, c_down, _ = st.columns([1, 1, 7])
+                            c_up, c_down = st.columns(2)
                             with c_up:
-                                if st.button("帮上了", key=f"fb_{log_id}_up"):
+                                if st.button("帮上了", key=f"fb_{log_id}_up", type="tertiary", use_container_width=True):
                                     usage.set_feedback(log_id, usage.FEEDBACK_UP)
                                     st.session_state.messages[i]["feedback"] = usage.FEEDBACK_UP
                                     st.rerun()
                             with c_down:
-                                if st.button("没帮上", key=f"fb_{log_id}_down"):
+                                if st.button("没帮上", key=f"fb_{log_id}_down", type="tertiary", use_container_width=True):
                                     usage.set_feedback(log_id, usage.FEEDBACK_DOWN)
                                     st.session_state.messages[i]["feedback"] = usage.FEEDBACK_DOWN
                                     st.rerun()
                         else:
                             fb = msg.get("feedback")
                             st.caption("已反馈：" + ("帮上了" if fb == usage.FEEDBACK_UP else "没帮上"))
-        question = st.chat_input("例如：转专业需要什么条件？")
+        question = st.chat_input("例如：数院转专业需要什么条件？/数院的刘康生老师风评如何？")
 
     if question:
         # 不含当前问题；只保留 role/content，附加字段（sources_md）不能发给 LLM 接口。
@@ -198,85 +245,114 @@ def render_chat():
 
             with st.chat_message("assistant", avatar="🎓"):
                 answer_slot = None
+                tcard = None
                 try:
-                    with st.spinner("检索知识库中..."):
-                        # 嵌入模型、Chroma、BM25 与重排器初始化较慢，首屏不需要；
-                        # 推迟到首次真正提问并由 cache_resource 保证后续复用。
-                        retriever, llm = load_resources()
-                        search_q = rewrite_query(llm, history, question)
-                        # 追问时把上一轮命中并入重排候选池，答案前后依据保持连贯
-                        hits = retriever.search(
-                            search_q,
-                            carry_ids=st.session_state.get("last_hit_ids", ()),
+                    # 查老师短路：识别到「评价某老师」提问时，不加载 RAG 资源（embedding/
+                    # reranker/BM25 是重活，老师卡片用不到），直接出结构化卡片。
+                    # get_llm() 只建 OpenAI 客户端（轻量），供速评/重名消歧/抽取兜底。
+                    llm = get_llm() if os.environ.get("LLM_API_KEY") else None
+                    tcard = teachers.maybe_card(question, question, llm=llm)
+                    if tcard is not None:
+                        card_html = teachers.render_card_html(tcard)
+                        st.markdown(card_html, unsafe_allow_html=True)
+                        # 老师卡片自成链路（kind='teacher'）不参与「未覆盖问题」统计
+                        card_log = usage.log_question(
+                            st.session_state.user["id"], question, 0, None,
+                            False, False, kind="teacher",
                         )
-                        # 百事通实时兜底：知识库无命中或最高分过低（库外问题）时，
-                        # 实时检索全校常见问题 + 网页资讯补进 prompt。结果结构与
-                        # RAG hits 兼容（title/source_url/… 齐全），build_context 原样处理
-                        top = max((h.get("score") or 0) for h in hits) if hits else 0
-                        fallback = False
-                        if BST_FALLBACK and (not hits or top < BST_FALLBACK_SCORE):
-                            bst_hits = bst.bst_search(search_q, top_n=BST_TOP_N)
-                            if bst_hits:
-                                hits = [*hits, *bst_hits]
-                                fallback = True
-                    # 检索详情随消息保存，重跑后历史循环里能原样重绘。
-                    # 展示的是真实检索词：含改写和黑话扩展（search 内部同一函数），
-                    # 否则扩展词把意外文档拉进结果时从 UI 上查不出原因
-                    shown_q = expand_query(search_q)
-                    retrieval = {
-                        "n": len(hits),
-                        "bst": fallback,
-                        "bst_n": len(bst_hits) if fallback else 0,
-                        "top_score": top,
-                        "rewritten": shown_q if shown_q != question else "",
-                        "items": [
-                            (
-                                f"- 《{h['title']}》〔百事通 · {h['from_bst']}〕— {snippet(h['text'])}"
-                                if h.get("from_bst") else f"- 《{h['title']}》— {snippet(h['text'])}"
+                        st.session_state.messages.append({
+                            "role": "assistant", "content": card_html,
+                            "sources_md": "评教社区历史评分/评论，仅供参考",
+                            "retrieval": None, "card": tcard, "log_id": card_log,
+                        })
+                        # 首问的 course_choose 要当场出选项：消息循环在本次脚本顶部已经
+                        # 跑过（当时 messages 还是空的，轮不到这一条），只有靠 rerun 才会
+                        # 走到 _render_course_choose。这里补一次，跟后续 rerun 用同一 key。
+                        if tcard.get("kind") == "course_choose":
+                            _render_course_choose(
+                                len(st.session_state.messages) - 1,
+                                st.session_state.messages[-1], tcard)
+                        st.session_state.last_hit_ids = ()
+                        ok = True
+                    else:
+                        with st.spinner("检索知识库中..."):
+                            # 嵌入模型、Chroma、BM25 与重排器初始化较慢，首屏不需要；
+                            # 推迟到首次真正提问并由 cache_resource 保证后续复用。
+                            retriever, llm = load_resources()
+                            search_q = rewrite_query(llm, history, question)
+                            # 追问时把上一轮命中并入重排候选池，答案前后依据保持连贯
+                            hits = retriever.search(
+                                search_q,
+                                carry_ids=st.session_state.get("last_hit_ids", ()),
                             )
-                            for h in hits
-                        ],
-                    }
-                    if fallback:
-                        exp_title = (
-                            f"知识库未命中，百事通实时补充 {retrieval['bst_n']} 条"
-                            if not hits or all(h.get("from_bst") for h in hits)
-                            else f"知识库命中 {retrieval['n'] - retrieval['bst_n']} 条 + 百事通补充 {retrieval['bst_n']} 条"
-                        )
-                    else:
-                        exp_title = (
-                            f"检索到 {retrieval['n']} 条相关片段"
-                            if retrieval["n"] else "未检索到相关片段"
-                        )
-                    with st.expander(exp_title):
-                        if retrieval["rewritten"]:
-                            st.caption(f"实际检索词：{retrieval['rewritten']}")
-                        for line in retrieval["items"]:
-                            st.markdown(line)
+                            # 百事通实时兜底：知识库无命中或最高分过低（库外问题）时，
+                            # 实时检索全校常见问题 + 网页资讯补进 prompt。结果结构与
+                            # RAG hits 兼容（title/source_url/… 齐全），build_context 原样处理
+                            top = max((h.get("score") or 0) for h in hits) if hits else 0
+                            fallback = False
+                            if BST_FALLBACK and (not hits or top < BST_FALLBACK_SCORE):
+                                bst_hits = bst.bst_search(search_q, top_n=BST_TOP_N)
+                                if bst_hits:
+                                    hits = [*hits, *bst_hits]
+                                    fallback = True
+                        # 检索详情随消息保存，重跑后历史循环里能原样重绘。
+                        # 展示的是真实检索词：含改写和黑话扩展（search 内部同一函数），
+                        # 否则扩展词把意外文档拉进结果时从 UI 上查不出原因
+                        shown_q = expand_query(search_q)
+                        retrieval = {
+                            "n": len(hits),
+                            "bst": fallback,
+                            "bst_n": len(bst_hits) if fallback else 0,
+                            "top_score": top,
+                            "rewritten": shown_q if shown_q != question else "",
+                            "items": [
+                                (
+                                    f"- 《{h['title']}》〔百事通 · {h['from_bst']}〕— {snippet(h['text'])}"
+                                    if h.get("from_bst") else f"- 《{h['title']}》— {snippet(h['text'])}"
+                                )
+                                for h in hits
+                            ],
+                        }
+                        if fallback:
+                            exp_title = (
+                                f"知识库未命中，百事通实时补充 {retrieval['bst_n']} 条"
+                                if not hits or all(h.get("from_bst") for h in hits)
+                                else f"知识库命中 {retrieval['n'] - retrieval['bst_n']} 条 + 百事通补充 {retrieval['bst_n']} 条"
+                            )
+                        else:
+                            exp_title = (
+                                f"检索到 {retrieval['n']} 条相关片段"
+                                if retrieval["n"] else "未检索到相关片段"
+                            )
+                        with st.expander(exp_title):
+                            if retrieval["rewritten"]:
+                                st.caption(f"实际检索词：{retrieval['rewritten']}")
+                            for line in retrieval["items"]:
+                                st.markdown(line)
 
-                    prompt, cite_srcs = build_context(question, hits, retriever.catalog)
-                    answer_slot = st.empty()  # 占位：流式结束后用重编号正文原地替换
-                    streamed = answer_slot.write_stream(stream_answer(llm, history, prompt))
-                    # write_stream 返回 str | list；全是字符串块时归一成 str
-                    answer = streamed if isinstance(streamed, str) else "".join(map(str, streamed))
+                        prompt, cite_srcs = build_context(question, hits, retriever.catalog)
+                        answer_slot = st.empty()  # 占位：流式结束后用重编号正文原地替换
+                        streamed = answer_slot.write_stream(stream_answer(llm, history, prompt))
+                        # write_stream 返回 str | list；全是字符串块时归一成 str
+                        answer = streamed if isinstance(streamed, str) else "".join(map(str, streamed))
 
-                    # 引用重映射为按出现顺序的 [1][2][3]…；来源清单跟着正文引用走，
-                    # LLM 没标注时退回"检索命中去重"
-                    answer, cited = renumber_citations(answer, cite_srcs)
-                    answer_slot.markdown(answer)
-                    if cited:
-                        sources = [s for _, s in cited]
-                        caption = " · ".join(
-                            f"[{n}] [《{s['title']}》]({s['source_url']})" for n, s in cited
-                        )
-                    else:
-                        sources = dedup_sources(hits)
-                        caption = " · ".join(
-                            f"[《{s['title']}》]({s['source_url']})" for s in sources
-                        )
-                    if caption:  # 零命中且模型未标注引用时没有来源，不渲染裸标签
-                        st.caption("来源：" + caption)
-                    ok = True
+                        # 引用重映射为按出现顺序的 [1][2][3]…；来源清单跟着正文引用走，
+                        # LLM 没标注时退回"检索命中去重"
+                        answer, cited = renumber_citations(answer, cite_srcs)
+                        answer_slot.markdown(answer)
+                        if cited:
+                            sources = [s for _, s in cited]
+                            caption = " · ".join(
+                                f"[{n}] [《{s['title']}》]({s['source_url']})" for n, s in cited
+                            )
+                        else:
+                            sources = dedup_sources(hits)
+                            caption = " · ".join(
+                                f"[《{s['title']}》]({s['source_url']})" for s in sources
+                            )
+                        if caption:  # 零命中且模型未标注引用时没有来源，不渲染裸标签
+                            st.caption("来源：" + caption)
+                        ok = True
                 except Exception as e:
                     # Streamlit 自身的控制流异常必须放行（当前版本继承 BaseException
                     # 不会进这里，但旧版继承 Exception，防一手）
@@ -295,7 +371,7 @@ def render_chat():
                     if not ok:
                         st.session_state.messages.pop()
 
-        if ok:
+        if ok and tcard is None:
             if hits:
                 # 零命中轮（库外问题被阈值过滤光）不覆写：中间插一个闲聊问题
                 # 不应该把上一轮的追问连续性状态清掉
