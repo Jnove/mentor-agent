@@ -7,9 +7,11 @@ mentor-agent/
 ├── KB_FORMAT.md          # 知识库文档格式规范（数据组必读）
 ├── QUESTION_FORMAT.md    # 真实问题收集与评测样本规范
 ├── KB_GOVERNANCE_REPORT.md # 治理结果与人工复核队列
-├── knowledge_base/       # 独立知识库子模块（正式目录 + 隔离的 staging/raw）
+├── knowledge_base/       # 独立知识库子模块（正式目录 + chalaoshi 原始评教 + 统一黑话 slang.json）
 ├── ingest.py             # CLI：默认仅入库 verified（--rebuild 全量重建）
+├── import_teachers.py    # 导入查老师原始数据（knowledge_base/chalaoshi → data/teacher.db）
 ├── scripts/govern_kb.py  # schema 审计、迁移和精确去重
+├── scripts/mine_course_slang.py  # 从评教评论挖掘课程黑话候选（供人工确认）
 ├── app.py                # 入口：登录门禁 + 页面导航
 ├── ui/                   # Streamlit 界面：问答 / 登录注册 / 用户管理
 ├── data/auth.db          # 用户库（自动创建，不进 git）
@@ -20,8 +22,11 @@ mentor-agent/
 │   ├── embeddings.py     #   embedding 后端（local/api 可切换）
 │   ├── retrieval.py      #   BM25+向量混合召回 → RRF 融合 → 交叉编码重排
 │   ├── llm.py            #   回答生成 / 多轮问题改写 / 笔记要点压缩
-│   └── notes.py          #   来源去重 / FAQ 导出
+│   ├── notes.py          #   来源去重 / FAQ 导出
+│   ├── teachers.py       #   查老师：数据模型 + 权重评分 + 课程黑话反查
+│   └── slang.py          #   校园黑话加载/展开（type=rag 检索扩展 / type=course 课程反查）
 ├── tests/test_core.py    # 纯函数测试：python tests/test_core.py
+├── tests/test_teachers.py # 查老师测试：python tests/test_teachers.py
 ├── .env.example          # 配置模板，复制为 .env 后填写
 ├── DEPLOY.md             # 服务器部署指南（Docker / 源码 + systemd）
 ├── Dockerfile            # 配套 compose.yaml 使用，见 DEPLOY.md
@@ -29,6 +34,34 @@ mentor-agent/
 ├── requirements.lock     # Python 3.12 生产/CI 哈希锁文件
 └── deploy/               # 生产配置模板、Caddy 与运维手册
 ```
+
+## 效果展示
+
+典型提问与对应输出（截图待补充，示意如下）：
+
+**知识检索问答** —— 问："保研需要什么条件？"
+
+```text
+[问答卡片 / 检索回答]
+```
+
+![保研问答](docs/image/README/demo_policy.png)
+
+**查老师 / 课程推荐** —— 问："fds 选哪个老师好？"
+
+```text
+[老师卡片：课程名 / 评分 / 精选评论 / gpa]
+```
+
+![查老师卡片](docs/image/README/demo_teacher.png)
+
+**课程黑话反查** —— 问："数分选哪个老师？"
+
+```text
+[课程推荐卡片：列出各课程对应老师]
+```
+
+![课程推荐](docs/image/README/demo_course.png)
 
 ## 快速开始
 
@@ -60,7 +93,16 @@ python ingest.py
 # python ingest.py --include-needs-review
 ```
 
-#### 5. 启动
+#### 5. 建查老师库（评教数据 → 授课/课程推荐查询）
+```
+python import_teachers.py
+#    改了导入逻辑或 schema 变更后需重建（--force 会重建混合候选）：
+# python import_teachers.py --force
+#    想跳过某些学院的评论混入审查，用 --mixed-ids=1,2,3（见脚本 --help）
+```
+原始评教数据来自 `knowledge_base/chalaoshi/`（comment_ 各学院 CSV + teachers.csv + gpa.json，随 KB 子模块拉取）。
+
+#### 6. 启动
 ```
 streamlit run app.py
 ```
