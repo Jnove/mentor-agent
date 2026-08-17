@@ -34,7 +34,7 @@
 - `ops_systemd_backup.py` — systemd 服务备份
 - `prewarm_models.py` — 预下载并调用 embedding/reranker，避免线上冷启动
 - `make_admin.py` — 把已注册用户提升为管理员
-- `fetch_kb.sh` / `update_kb.ps1` — 知识库子模块同步脚本（bash / PowerShell）
+- `update_kb.ps1` — 知识库子模块完整更新流水线（拉取 + govern + ingest，Windows PowerShell）
 
 ## 统计
 
