@@ -6,10 +6,9 @@
 """
 import sqlite3
 import time
-from contextlib import contextmanager
-from pathlib import Path
 
 from core.config import USAGE_DB
+from core.db import connect as _connect
 
 # feedback 三态：NULL 未反馈 / 0 没帮上 / 1 帮上了
 FEEDBACK_UP = 1
@@ -31,20 +30,6 @@ CREATE TABLE IF NOT EXISTS questions (
 );
 CREATE INDEX IF NOT EXISTS idx_questions_created ON questions(created_at);
 """
-
-
-@contextmanager
-def _connect(db_path: str | None = None):
-    path = Path(db_path or USAGE_DB)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path)
-    db.row_factory = sqlite3.Row
-    try:
-        db.execute("PRAGMA journal_mode=WAL")
-        with db:  # 事务：正常提交，异常回滚
-            yield db
-    finally:
-        db.close()
 
 
 def init_db(db_path: str | None = None) -> None:

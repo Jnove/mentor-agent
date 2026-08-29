@@ -8,8 +8,14 @@ BM25 词面对不上正式文档、小模型向量对校园专名也不可靠—
 本模块只消费其中 type=rag 的条目（黑话 → 正式语词字符串）。
 词条只收「文档里用正式名词、同学口中用黑话」的映射；正式名词本身已经
 可检索的不收。攒到新的黑话 miss（看 tests/eval_retrieval.py 的 miss 清单）
-就往 knowledge_base/slang.json 加一条。"""
+就往 knowledge_base/slang.json 加一条。
 
+读改写样板（read+validate / atomic write）由本模块的 read_slang_json() 与
+atomic_write_slang_json() 统一提供；core/teachers.py 的 save/delete
+course_slang 直接调用，避免三份 JSON 处理代码各漂移一份。
+"""
+
+import json
 import os
 import subprocess
 import sys
@@ -18,21 +24,30 @@ from pathlib import Path
 from core.config import SLANG_FILE
 
 
-def _load_slang() -> dict[str, str]:
-    """加载 RAG 黑话（type=rag）；缺失/损坏 → {}。"""
-    import json
+def read_slang_json(path=None) -> dict:
+    """读取 slang JSON 全部条目；缺失/损坏/类型不对 → {}。
+
+    path 缺省走默认 SLANG_FILE（=core.config.SLANG_FILE），传入 path 可由调用方
+    指定临时文件——测试用 monkeypatch 时必须显式传，否则闭包了导入时的全局路径。
+    """
+    target = Path(path) if path else Path(SLANG_FILE)
     try:
-        with open(SLANG_FILE, encoding="utf-8") as f:
+        with open(target, encoding="utf-8") as f:
             data = json.load(f)
-        out: dict[str, str] = {}
-        for slang, entry in data.items():
-            if isinstance(entry, dict) and entry.get("type") == "rag":
-                value = entry.get("value")
-                if isinstance(value, str) and value:
-                    out[slang] = value
-        return out
+        return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
+
+
+def _load_slang() -> dict[str, str]:
+    """加载 RAG 黑话（type=rag）；缺失/损坏 → {}。"""
+    out: dict[str, str] = {}
+    for slang, entry in read_slang_json().items():
+        if isinstance(entry, dict) and entry.get("type") == "rag":
+            value = entry.get("value")
+            if isinstance(value, str) and value:
+                out[slang] = value
+    return out
 
 
 def _load_all() -> dict[str, dict]:
@@ -40,24 +55,17 @@ def _load_all() -> dict[str, dict]:
 
     供 admin 页统一展示/写回用，返回 {黑话: 原始条目 dict}，不区分类型。
     """
-    import json
-    try:
-        with open(SLANG_FILE, encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, dict):
-            return data
-        return {}
-    except (OSError, ValueError):
-        return {}
+    return read_slang_json()
 
 
-def _atomic_write_slang(data) -> str | None:
-    """原子写 SLANG_FILE：写临时文件后 os.replace 改名，避免崩在 dump 中途留下半截 JSON。
-    写入前检测 SLANG_FILE 是否落在 git 子模块里——如果是，提示管理员需要单独
+def atomic_write_slang_json(data, path=None) -> str | None:
+    """原子写 slang JSON：写临时文件后 os.replace 改名，避免崩在 dump 中途留下半截 JSON。
+    写入前检测 path 是否落在 git 子模块里——如果是，提示管理员需要单独
     提交子模块，否则下次 update_kb / git submodule update --remote 会覆盖本地的修改。
+
+    失败返回错误信息，成功返回 None。path 缺省走默认 SLANG_FILE。
     """
-    import json
-    slang_path = Path(SLANG_FILE)
+    slang_path = Path(path) if path else Path(SLANG_FILE)
     try:
         # 子模块检测：git submodule 目录里跑 git rev-parse --show-superproject-working-tree
         # 会输出父仓库的 working tree；非子模块则输出空。2 秒超时，失败按非子模块处理。
@@ -90,33 +98,31 @@ def save_rag_slang(slang: str, value: str) -> str | None:
     value: 正式语词（字符串）。重复黑话覆盖旧值；只改 type=rag，不动课程黑话。
     拒绝覆盖其他类型：同 key 不允许从一种类型直接改成另一种。
     """
-    import json
     slang = (slang or "").strip()
     value = (value or "").strip()
     if not slang:
         return "黑话词不能为空"
     if not value:
         return "正式语词不能为空"
-    data = _load_all()
+    data = read_slang_json()
     existing = data.get(slang)
     if isinstance(existing, dict) and existing.get("type") and existing.get("type") != "rag":
         return "该黑话已映射到「%s」类型，请先删除旧映射再添加" % existing["type"]
     data[slang] = {"type": "rag", "value": value}
-    return _atomic_write_slang(data)
+    return atomic_write_slang_json(data)
 
 
 def delete_rag_slang(slang: str) -> str | None:
     """删除统一黑话表里一条 type=rag 映射；无此条按已删除处理。绝不动课程黑话。"""
-    import json
     slang = (slang or "").strip()
     if not slang:
         return "黑话词不能为空"
-    data = _load_all()
+    data = read_slang_json()
     entry = data.get(slang)
     if not (isinstance(entry, dict) and entry.get("type") == "rag"):
         return None
     data.pop(slang, None)
-    return _atomic_write_slang(data)
+    return atomic_write_slang_json(data)
 
 
 def expand_query(query: str) -> str:

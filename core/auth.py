@@ -9,10 +9,9 @@ import os
 import secrets
 import sqlite3
 import time
-from contextlib import contextmanager
-from pathlib import Path
 
 from core.config import AUTH_DB, admin_emails
+from core.db import connect as _connect
 
 # 验证码
 CODE_TTL = 600          # 10 分钟有效
@@ -46,22 +45,8 @@ CREATE TABLE IF NOT EXISTS email_codes (
 """
 
 
-@contextmanager
-def _connect(db_path: str | None = None):
-    path = Path(db_path or AUTH_DB)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path)
-    db.row_factory = sqlite3.Row
-    try:
-        db.execute("PRAGMA journal_mode=WAL")
-        with db:  # 事务：正常提交，异常回滚
-            yield db
-    finally:
-        db.close()
-
-
 def init_db(db_path: str | None = None) -> None:
-    with _connect(db_path) as db:
+    with _connect(db_path or AUTH_DB) as db:
         db.executescript(_SCHEMA)
 
 

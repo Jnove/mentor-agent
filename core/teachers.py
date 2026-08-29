@@ -20,10 +20,11 @@ import os
 import re
 import sqlite3
 import time
-from contextlib import contextmanager
 from pathlib import Path
 
 from core.config import SLANG_FILE, TEACHER_DB, TEACHER_LOOKUP, TEACHER_SUMMARY
+from core.db import connect as _connect
+from core.slang import atomic_write_slang_json, read_slang_json
 
 # 评价意图正则：问题里出现这些词才可能是「评价某老师」类提问
 _INTENT_RE = re.compile(
@@ -143,22 +144,8 @@ CREATE INDEX IF NOT EXISTS idx_comments_w ON comments(teacher_id, cluster_id, we
 """
 
 
-@contextmanager
-def _connect(db_path: str | None = None):
-    path = Path(db_path or TEACHER_DB)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path)
-    db.row_factory = sqlite3.Row
-    try:
-        db.execute("PRAGMA journal_mode=WAL")
-        with db:
-            yield db
-    finally:
-        db.close()
-
-
 def init_db(db_path: str | None = None) -> None:
-    with _connect(db_path) as db:
+    with _connect(db_path or TEACHER_DB) as db:
         db.executescript(_SCHEMA)
 
 
@@ -440,20 +427,18 @@ def detect_course_query(text, db_path=None):
 
 
 def _load_course_slang():
-    """加载课程黑话（knowledge_base/slang.json 中 type=course 的条目）；缺失/损坏 → {}。"""
-    import json as _json
-    try:
-        with open(SLANG_FILE, encoding="utf-8") as f:
-            data = _json.load(f)
-        out = {}
-        for k, entry in data.items():
-            if isinstance(entry, dict) and entry.get("type") == "course":
-                value = entry.get("value")
-                if isinstance(value, list) and value:
-                    out[k] = [c for c in value if c]
-        return out
-    except (OSError, ValueError):
-        return {}
+    """加载课程黑话（knowledge_base/slang.json 中 type=course 的条目）；缺失/损坏 → {}。
+
+    显式传 SLANG_FILE：测试 monkeypatch 修改的是本模块的 SLANG_FILE，传过去才能
+    读到临时文件而不是闭包里的默认值。
+    """
+    out = {}
+    for k, entry in read_slang_json(SLANG_FILE).items():
+        if isinstance(entry, dict) and entry.get("type") == "course":
+            value = entry.get("value")
+            if isinstance(value, list) and value:
+                out[k] = [c for c in value if c]
+    return out
 
 
 def _expand_course_slang(text, db_path=None):
@@ -504,7 +489,6 @@ def save_course_slang(slang, courses, db_path=None) -> str | None:
     防止 admin 误操作把 RAG 黑话静默改成课程黑话。
     重复黑话覆盖旧值；空黑话/空课程拒绝。只改 type=course 的条目，不动 RAG 黑话。
     """
-    import json as _json
     slang = (slang or "").strip()
     courses = [c.strip() for c in courses if c and c.strip()]
     if not slang:
@@ -514,19 +498,12 @@ def save_course_slang(slang, courses, db_path=None) -> str | None:
     for c in courses:
         if not _course_slang_course_exists(c, db_path):
             return "课程《%s》不在评教课程表里，无法建立映射" % c
-    try:
-        with open(SLANG_FILE, encoding="utf-8") as f:
-            data = _json.load(f)
-        if not isinstance(data, dict):
-            data = {}
-    except (OSError, ValueError):
-        data = {}
+    data = read_slang_json(SLANG_FILE)
     existing = data.get(slang)
     if isinstance(existing, dict) and existing.get("type") and existing.get("type") != "course":
         return "该黑话已映射到「%s」类型，请先删除旧映射再添加" % existing["type"]
     data[slang] = {"type": "course", "value": courses}
-    err = _atomic_write_slang(data)
-    return err
+    return atomic_write_slang_json(data, SLANG_FILE)
 
 
 def delete_course_slang(slang, db_path=None) -> str | None:
@@ -534,59 +511,15 @@ def delete_course_slang(slang, db_path=None) -> str | None:
 
     只删 type=course 条目，绝不动 RAG 黑话。删除后仍保留其余全部条目（含 RAG）。
     """
-    import json as _json
     slang = (slang or "").strip()
     if not slang:
         return "黑话词不能为空"
-    try:
-        with open(SLANG_FILE, encoding="utf-8") as f:
-            data = _json.load(f)
-        if not isinstance(data, dict):
-            data = {}
-    except (OSError, ValueError):
-        data = {}
+    data = read_slang_json(SLANG_FILE)
     entry = data.get(slang)
     if not (isinstance(entry, dict) and entry.get("type") == "course"):
         return None  # 无此课程黑话，视为已删除
     data.pop(slang, None)
-    return _atomic_write_slang(data)
-
-
-def _atomic_write_slang(data) -> str | None:
-    """原子写 SLANG_FILE：写临时文件后 os.replace 改名，避免崩在 dump 中途留下半截 JSON。
-    写入前检测 SLANG_FILE 是否落在 git 子模块里——如果是，提示管理员需要单独
-    提交子模块，否则下次 update_kb / git submodule update --remote 会覆盖本地的修改。
-    """
-    import json as _json
-    import os as _os
-    import sys as _sys
-    from pathlib import Path as _Path
-    slang_path = _Path(SLANG_FILE)
-    try:
-        # 子模块检测：git submodule 目录里跑 git rev-parse --show-superproject-working-tree
-        # 会输出父仓库的 working tree；非子模块则输出空。2 秒超时，失败按非子模块处理。
-        import subprocess as _sp
-        r = _sp.run(
-            ["git", "-C", str(slang_path.parent), "rev-parse", "--show-superproject-working-tree"],
-            capture_output=True, text=True, timeout=2,
-        )
-        if r.stdout.strip():
-            print(
-                f"[slang] 警告：{SLANG_FILE} 位于 git 子模块内。"
-                f"本次修改请单独提交到子模块，否则下次 update_kb / "
-                f"git submodule update --remote 会覆盖本次编辑。",
-                file=_sys.stderr,
-            )
-    except Exception:
-        pass
-    tmp = str(slang_path) + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            _json.dump(data, f, ensure_ascii=False, indent=2)
-        _os.replace(tmp, slang_path)
-    except OSError as e:
-        return "写入失败: %s" % e
-    return None
+    return atomic_write_slang_json(data, SLANG_FILE)
 
 
 def _course_candidates(courses, db_path=None):
@@ -831,81 +764,84 @@ def _fmt_net(net):
     return '<span class="tc-vote tc-vote-zero">0</span>'
 
 
-def render_card_html(card):
-    """把卡片 dict 渲染成结构化 HTML（CSS 类见 ui/theme.py .teacher-card 族）。"""
-    if card.get("kind") == "not_found":
-        name = html.escape(card.get("name") or "")
-        return (
-            '<div class="teacher-card">'
-            '<div class="tc-head"><span class="tc-name">{}</span>'
-            '<span class="tc-college">尚未收录</span></div>'
-            '<div class="tc-notfound">该老师尚未收录（可能不在评教社区内），'
-            '暂无评分与评价。</div></div>'.format(name)
-        )
-    if card.get("kind") == "ambiguous":
-        name = html.escape(card.get("name") or "")
-        rows = "".join(
-            '- <b>{}</b>（{}，评分 {:.1f}）<br/>'.format(
-                html.escape(c["name"]), html.escape(c["college"] or "学院未知"),
-                float(c["rating"] or 0))
-            for c in card.get("candidates", [])
-        )
-        return (
-            '<div class="teacher-card">'
-            '<div class="tc-head"><span class="tc-name">{}</span></div>'
-            '<div class="tc-ambiguous">查到多位同名老师，请补充学院或课程以便确认：'
-            '<br/>{}</div></div>'.format(name, rows)
-        )
+def _card_wrap(*body: str) -> str:
+    """teacher-card 外壳：所有卡片渲染器共用，保证 5 种 kind 的根 div 一致。"""
+    return '<div class="teacher-card">' + "".join(body) + '</div>'
 
-    if card.get("kind") == "course_choose":
-        return (
-            '<div class="teacher-card">'
-            '<div class="tc-head"><span class="tc-name">选课推荐</span></div>'
-            '<div class="tc-choose">这个叫法可能对应多门课，请选择你具体要问哪一门：</div>'
-            '</div>'
-        )
 
-    if card.get("kind") == "course":
-        course = html.escape(card.get("course") or "")
-        cands = card.get("candidates", [])
-        if not cands:
-            return (
-                '<div class="teacher-card">'
-                '<div class="tc-head"><span class="tc-name">{}</span>'
-                '<span class="tc-college">选课推荐</span></div>'
-                '<div class="tc-notfound">暂未收录教这门课的老师。</div></div>'.format(course)
-            )
-        rows = ""
-        for c in cands:
-            rating = float(c["rating"] or 0)
-            rc = int(c["rating_count"] or 0)
-            if rc == 0:
-                score = "暂无评分"
-            else:
-                score = "{:.1f}/10（{}人）".format(rating, rc)
-            low = " <em>样本少</em>" if 0 < rc < 10 else ""
-            rows += (
-                '<div class="tc-course"><span><b>{}</b> · {}</span>'
-                '<span class="tc-gpa">{}{}</span></div>'.format(
-                    html.escape(c["name"]), html.escape(c["college"] or "学院未知"),
-                    score, low)
-            )
-        courses = card.get("courses") or []
+def _render_not_found(card: dict) -> str:
+    name = html.escape(card.get("name") or "")
+    return _card_wrap(
+        f'<div class="tc-head"><span class="tc-name">{name}</span>'
+        f'<span class="tc-college">尚未收录</span></div>'
+        f'<div class="tc-notfound">该老师尚未收录（可能不在评教社区内），'
+        f'暂无评分与评价。</div>',
+    )
+
+
+def _render_ambiguous(card: dict) -> str:
+    name = html.escape(card.get("name") or "")
+    rows = "".join(
+        f'- <b>{html.escape(c["name"])}</b>（{html.escape(c["college"] or "学院未知")}，'
+        f'评分 {float(c["rating"] or 0):.1f}）<br/>'
+        for c in card.get("candidates", [])
+    )
+    return _card_wrap(
+        f'<div class="tc-head"><span class="tc-name">{name}</span></div>'
+        f'<div class="tc-ambiguous">查到多位同名老师，请补充学院或课程以便确认：'
+        f'<br/>{rows}</div>',
+    )
+
+
+def _render_course_choose(card: dict) -> str:
+    return _card_wrap(
+        '<div class="tc-head"><span class="tc-name">选课推荐</span></div>'
+        '<div class="tc-choose">这个叫法可能对应多门课，请选择你具体要问哪一门：</div>',
+    )
+
+
+def _course_score_text(rating: float, rc: int) -> tuple[str, str]:
+    """返回 (评分文本, 「样本少」HTML 后缀或空)。"""
+    if rc == 0:
+        return "暂无评分", ""
+    low = " <em>样本少</em>" if 0 < rc < 10 else ""
+    return f"{rating:.1f}/10（{rc}人）", low
+
+
+def _render_course(card: dict) -> str:
+    course = html.escape(card.get("course") or "")
+    cands = card.get("candidates", [])
+    if not cands:
+        return _card_wrap(
+            f'<div class="tc-head"><span class="tc-name">{course}</span>'
+            f'<span class="tc-college">选课推荐</span></div>'
+            '<div class="tc-notfound">暂未收录教这门课的老师。</div>',
+        )
+    rows = "".join(
+        f'<div class="tc-course"><span><b>{html.escape(c["name"])}</b> · '
+        f'{html.escape(c["college"] or "学院未知")}</span>'
+        f'<span class="tc-gpa">{score}{low}</span></div>'
+        for c in cands
+        for score, low in [_course_score_text(float(c["rating"] or 0),
+                                              int(c["rating_count"] or 0))]
+    )
+    courses = card.get("courses") or []
+    if len(courses) > 1:
+        expand = (f'<div class="tc-meta" style="margin:.1rem 0 .5rem">涵盖：'
+                  f'{" · ".join(html.escape(x) for x in courses)}</div>')
+    else:
         expand = ""
-        if len(courses) > 1:
-            expand = '<div class="tc-meta" style="margin:.1rem 0 .5rem">涵盖：{}</div>'.format(
-                " · ".join(html.escape(x) for x in courses))
-        return (
-            '<div class="teacher-card">'
-            '<div class="tc-head"><span class="tc-name">{course}</span>'
-            '<span class="tc-college">选课推荐</span></div>'
-            '{expand}'
-            '<div class="tc-courses-title">教这门课的老师（按评分）</div>'
-            '<div class="tc-courses">{rows}</div>'
-            '<div class="tc-notfound" style="font-size:.78rem">评教社区数据，仅供参考</div>'
-            '</div>'.format(course=course, expand=expand, rows=rows)
-        )
+    return _card_wrap(
+        f'<div class="tc-head"><span class="tc-name">{course}</span>'
+        f'<span class="tc-college">选课推荐</span></div>'
+        f'{expand}'
+        '<div class="tc-courses-title">教这门课的老师（按评分）</div>'
+        f'<div class="tc-courses">{rows}</div>'
+        '<div class="tc-notfound" style="font-size:.78rem">评教社区数据，仅供参考</div>',
+    )
 
+
+def _render_teacher(card: dict) -> str:
     t = card["teacher"]
     name = html.escape(t["name"])
     college = html.escape(t["college"] or "未知学院")
@@ -917,33 +853,35 @@ def render_card_html(card):
     for c in card["courses"][:5]:
         sample = "500+" if c["sample_500plus"] else str(int(c["sample_count"] or 0))
         courses_html += (
-            '<div class="tc-course"><span>{}</span>'
-            '<span class="tc-gpa">GPA {:.2f} <em>{}人</em></span></div>'.format(
-                html.escape(c["name"] or ""), float(c["gpa"] or 0), sample)
+            f'<div class="tc-course"><span>{html.escape(c["name"] or "")}</span>'
+            f'<span class="tc-gpa">GPA {float(c["gpa"] or 0):.2f} '
+            f'<em>{sample}人</em></span></div>'
         )
     if courses_html:
-        courses_html = '<div class="tc-courses-title">课程平均绩点</div><div class="tc-courses">' + courses_html + "</div>"
+        courses_html = ('<div class="tc-courses-title">课程平均绩点</div>'
+                        '<div class="tc-courses">' + courses_html + '</div>')
 
     clusters_html = ""
     for cl in card["clusters"]:
         for c in cl["comments"]:
             ts = c["published_at"]
             date_s = time.strftime("%Y-%m", time.localtime(ts)) if ts else ""
-            meta = "{} · {}".format(date_s, _fmt_net(int(c["net_votes"] or 0))) if date_s else _fmt_net(int(c["net_votes"] or 0))
+            meta = (f"{date_s} · {_fmt_net(int(c['net_votes'] or 0))}"
+                    if date_s else _fmt_net(int(c['net_votes'] or 0)))
             # 评教社区原文把换行存成字面 "\n"（反斜杠+n 两个字符），先还原为真实换行，
             # 再压缩连续换行（原文常有多余 \n\n\n），最后转成 <br> 让换行真正显示
             content = (c["content"] or "").replace("\\n", "\n")
             content = re.sub(r"\n{2,}", "\n", content).strip()
             rendered = html.escape(content).replace("\n", "<br>")
             clusters_html += (
-                '<div class="tc-comment"><p>{}</p>'
-                '<span class="tc-meta">{}</span></div>'.format(
-                    rendered, meta)
+                f'<div class="tc-comment"><p>{rendered}</p>'
+                f'<span class="tc-meta">{meta}</span></div>'
             )
     if not clusters_html:
         clusters_html = '<div class="tc-nocomment">暂无评教评论</div>'
     else:
-        clusters_html = '<div class="tc-comments-title">同学评价</div><div class="tc-comments">' + clusters_html + "</div>"
+        clusters_html = ('<div class="tc-comments-title">同学评价</div>'
+                         '<div class="tc-comments">' + clusters_html + '</div>')
 
     caveat = (
         '<div class="tc-caveat">⚠ 该记录可能含多位同名老师，以下按课程分组仅供参考</div>'
@@ -951,21 +889,33 @@ def render_card_html(card):
     )
     summary = ""
     if card.get("summary"):
-        summary = '<div class="tc-summary">{}</div>'.format(html.escape(card["summary"]))
+        summary = f'<div class="tc-summary">{html.escape(card["summary"])}</div>'
 
-    return (
-        '<div class="teacher-card">'
-        '<div class="tc-head"><span class="tc-name">{name}</span>'
-        '<span class="tc-college">{college}</span></div>'
+    return _card_wrap(
+        f'<div class="tc-head"><span class="tc-name">{name}</span>'
+        f'<span class="tc-college">{college}</span></div>'
         '<div class="tc-stats">'
-        '<div class="tc-score"><b>{rating:.1f}</b><i>/10</i></div>'
-        '<div class="tc-stat">评分 <b>{rcount}</b> 人</div>'
-        '<div class="tc-stat">热度 <b>{hot}</b></div>'
+        f'<div class="tc-score"><b>{rating:.1f}</b><i>/10</i></div>'
+        f'<div class="tc-stat">评分 <b>{rcount}</b> 人</div>'
+        f'<div class="tc-stat">热度 <b>{hot}</b></div>'
         '</div>'
-        '{summary}{caveat}{courses_html}{clusters_html}'
-        '</div>'.format(
-            name=name, college=college, rating=rating, rcount=rcount, hot=hot,
-            summary=summary, caveat=caveat,
-            courses_html=courses_html, clusters_html=clusters_html,
-        )
+        f'{summary}{caveat}{courses_html}{clusters_html}',
     )
+
+
+# 分派表：card["kind"] → 渲染器。增加新 kind 加一行即可，render_card_html 不用动。
+_CARD_RENDERERS = {
+    "not_found": _render_not_found,
+    "ambiguous": _render_ambiguous,
+    "course_choose": _render_course_choose,
+    "course": _render_course,
+}
+
+
+def render_card_html(card):
+    """把卡片 dict 渲染成结构化 HTML（CSS 类见 ui/theme.py .teacher-card 族）。
+
+    按 card["kind"] 分派到 per-kind 渲染器；kind 缺失或未知 → 当作单老师卡渲染。
+    """
+    render = _CARD_RENDERERS.get(card.get("kind"))
+    return render(card) if render is not None else _render_teacher(card)
