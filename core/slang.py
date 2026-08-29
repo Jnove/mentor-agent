@@ -29,14 +29,32 @@ def read_slang_json(path=None) -> dict:
 
     path 缺省走默认 SLANG_FILE（=core.config.SLANG_FILE），传入 path 可由调用方
     指定临时文件——测试用 monkeypatch 时必须显式传，否则闭包了导入时的全局路径。
+    按 (path, mtime) 缓存：管理员通过 atomic_write_slang_json 写入会触发 os.replace，
+    新文件的 mtime 跟旧的不同，下一次读取自动重建；测试 monkeypatch 改路径也是新 key。
     """
     target = Path(path) if path else Path(SLANG_FILE)
+    key = str(target)
+    try:
+        mtime = target.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    cached = _SLANG_CACHE.get(key)
+    if cached and cached[0] == mtime:
+        return cached[1]
     try:
         with open(target, encoding="utf-8") as f:
             data = json.load(f)
-        return data if isinstance(data, dict) else {}
+        result = data if isinstance(data, dict) else {}
     except (OSError, ValueError):
-        return {}
+        result = {}
+    _SLANG_CACHE[key] = (mtime, result)
+    return result
+
+
+# 按 (path, mtime) 缓存，避免每次提问都重读 slang.json（admin 写入通过
+# atomic_write_slang_json 走 os.replace，mtime 自动更新；测试 monkeypatch 改路径
+# 也是新 key，缓存不串）。
+_SLANG_CACHE: dict[str, tuple[float, dict]] = {}
 
 
 def _load_slang() -> dict[str, str]:

@@ -526,6 +526,8 @@ def _course_candidates(courses, db_path=None):
     """按课程名列表反查老师，聚合去重（同一老师教多门课合并 courses）。
 
     courses: 单个课程名或课程名列表。返回 {course: 主名, courses: 全部课程, candidates}。
+    GROUP_CONCAT(DISTINCT c.name) 把 N+1（每个老师一次 SELECT 拿他教的命中课程）
+    折叠成 1 次查询；热门课 50 个老师从 51 次 round-trip 降到 1 次。
     """
     if isinstance(courses, str):
         courses = [courses]
@@ -534,24 +536,21 @@ def _course_candidates(courses, db_path=None):
     with _connect(db_path) as db:
         ph = ",".join("?" * len(courses))
         rows = db.execute(
-            "SELECT DISTINCT c.teacher_id, t.name, t.college, t.rating, t.rating_count "
+            "SELECT c.teacher_id, t.name, t.college, t.rating, t.rating_count, "
+            "       GROUP_CONCAT(DISTINCT c.name) AS taught "
             "FROM courses c JOIN teachers t ON t.id=c.teacher_id "
-            "WHERE c.name IN (%s) ORDER BY t.rating_count DESC" % ph,
+            "WHERE c.name IN (%s) "
+            "GROUP BY c.teacher_id, t.name, t.college, t.rating, t.rating_count "
+            "ORDER BY t.rating_count DESC" % ph,
             tuple(courses),
         ).fetchall()
         by_teacher = {}
         for r in rows:
-            by_teacher.setdefault(r[0], {
+            by_teacher[r[0]] = {
                 "id": r[0], "name": r[1], "college": r[2],
                 "rating": float(r[3] or 0), "rating_count": int(r[4] or 0),
-                "courses": [],
-            })
-        for tid in by_teacher:
-            taught = [x[0] for x in db.execute(
-                "SELECT DISTINCT name FROM courses WHERE teacher_id=? AND name IN (%s)" % ph,
-                (tid,) + tuple(courses),
-            ).fetchall()]
-            by_teacher[tid]["courses"] = taught
+                "courses": [n for n in (r[5] or "").split(",") if n],
+            }
     if not by_teacher:
         return None
     return {"course": max(courses, key=len), "courses": courses,
