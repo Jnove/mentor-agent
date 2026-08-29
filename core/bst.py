@@ -235,11 +235,16 @@ _cache: dict[str, list[dict]] = {}
 
 
 def _throttled(query: str, top_n: int) -> list[dict] | None:
-    """满足节流条件才放行；返回 None 表示应使用缓存。"""
+    """满足节流条件才放行；返回 None 表示应使用缓存。
+
+    节流窗口内且缓存命中：返回缓存值（list）；命中空缓存也算有效（避免重复请求）。
+    节流窗口内且缓存未命中：返回 []——调用方走 `if cached is not None: return cached`
+    直接得到空列表，跳过这次 HTTP 请求；节流窗口过了才会真正打 s.zju.edu.cn。
+    """
     global _last_call
     now = _time.monotonic()
     if now - _last_call < BST_MIN_INTERVAL:
-        return _cache.get(query)
+        return _cache.get(query, [])
     _last_call = now
     return None
 

@@ -635,13 +635,16 @@ _SUMMARY_CACHE = {}
 
 
 def llm_summary(llm, card, db_path=None):
-    """(c) 2-3 句速评；按 teacher_id 缓存，失败降级为 None（卡片直接展示评论）。"""
+    """(c) 2-3 句速评；按 teacher_id 缓存，失败降级为 None（卡片直接展示评论）。
+
+    用 `tid in cache` 而不是 `cached is not None`：失败时仍写入 None，retry 时直接
+    拿到 None 返回，不再二次打 LLM；只有首次（或被 LRU 淘汰后）才会真正请求。
+    """
     if not TEACHER_SUMMARY:
         return None
     tid = card["teacher"]["id"]
-    cached = _SUMMARY_CACHE.get(tid)
-    if cached is not None:
-        return cached
+    if tid in _SUMMARY_CACHE:
+        return _SUMMARY_CACHE[tid]
     t = card["teacher"]
     top_comments = []
     for cl in card["clusters"]:
@@ -724,9 +727,20 @@ def maybe_card(text, question, llm=None, db_path=None):
     m = re.search(r"([一-龥]{2,6})(?:学院|学系)", text)
     if m:
         college = m.group(1)
+    # 一次 IN-list 查询所有候选老师是否教这门课，避免 N 次 sqlite3.connect。
+    # 同名老师热门课可能 20+ 个候选，原版要开 20+ 次连接。
+    teaches: set[int] = set()
+    if course and candidates:
+        with _connect(db_path) as db:
+            ph = ",".join("?" * len(candidates))
+            teaches = {r[0] for r in db.execute(
+                f"SELECT DISTINCT teacher_id FROM courses "
+                f"WHERE name=? AND teacher_id IN ({ph})",
+                (course, *[c["id"] for c in candidates]),
+            ).fetchall()}
     narrowed = []
     for c in candidates:
-        if course and _candidate_teaches(c["id"], course, db_path):
+        if course and c["id"] in teaches:
             narrowed.append(c)
             continue
         if college and c["college"] and college in c["college"]:
@@ -744,16 +758,6 @@ def maybe_card(text, question, llm=None, db_path=None):
                 return _finalize(card, card["teacher"]["name"], llm, db_path)
 
     return {"kind": "ambiguous", "candidates": candidates, "name": det["name"]}
-
-
-def _candidate_teaches(teacher_id, course, db_path=None):
-    with _connect(db_path) as db:
-        row = db.execute(
-            "SELECT 1 FROM courses WHERE teacher_id=? AND name=? LIMIT 1",
-            (teacher_id, course),
-        ).fetchone()
-    return row is not None
-
 
 
 def _fmt_net(net):
