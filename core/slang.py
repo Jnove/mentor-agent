@@ -10,6 +10,11 @@ BM25 词面对不上正式文档、小模型向量对校园专名也不可靠—
 可检索的不收。攒到新的黑话 miss（看 tests/eval_retrieval.py 的 miss 清单）
 就往 knowledge_base/slang.json 加一条。"""
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 from core.config import SLANG_FILE
 
 
@@ -46,10 +51,44 @@ def _load_all() -> dict[str, dict]:
         return {}
 
 
+def _atomic_write_slang(data) -> str | None:
+    """原子写 SLANG_FILE：写临时文件后 os.replace 改名，避免崩在 dump 中途留下半截 JSON。
+    写入前检测 SLANG_FILE 是否落在 git 子模块里——如果是，提示管理员需要单独
+    提交子模块，否则下次 update_kb / git submodule update --remote 会覆盖本地的修改。
+    """
+    import json
+    slang_path = Path(SLANG_FILE)
+    try:
+        # 子模块检测：git submodule 目录里跑 git rev-parse --show-superproject-working-tree
+        # 会输出父仓库的 working tree；非子模块则输出空。2 秒超时，失败按非子模块处理。
+        r = subprocess.run(
+            ["git", "-C", str(slang_path.parent), "rev-parse", "--show-superproject-working-tree"],
+            capture_output=True, text=True, timeout=2,
+        )
+        if r.stdout.strip():
+            print(
+                f"[slang] 警告：{SLANG_FILE} 位于 git 子模块内。"
+                f"本次修改请单独提交到子模块，否则下次 update_kb / "
+                f"git submodule update --remote 会覆盖本次编辑。",
+                file=sys.stderr,
+            )
+    except Exception:
+        pass
+    tmp = str(slang_path) + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, slang_path)
+    except OSError as e:
+        return "写入失败: %s" % e
+    return None
+
+
 def save_rag_slang(slang: str, value: str) -> str | None:
     """往统一黑话表写一条 type=rag 映射；校验失败返回错误，成功返回 None。
 
     value: 正式语词（字符串）。重复黑话覆盖旧值；只改 type=rag，不动课程黑话。
+    拒绝覆盖其他类型：同 key 不允许从一种类型直接改成另一种。
     """
     import json
     slang = (slang or "").strip()
@@ -59,13 +98,11 @@ def save_rag_slang(slang: str, value: str) -> str | None:
     if not value:
         return "正式语词不能为空"
     data = _load_all()
+    existing = data.get(slang)
+    if isinstance(existing, dict) and existing.get("type") and existing.get("type") != "rag":
+        return "该黑话已映射到「%s」类型，请先删除旧映射再添加" % existing["type"]
     data[slang] = {"type": "rag", "value": value}
-    try:
-        with open(SLANG_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except OSError as e:
-        return "写入失败: %s" % e
-    return None
+    return _atomic_write_slang(data)
 
 
 def delete_rag_slang(slang: str) -> str | None:
@@ -79,12 +116,7 @@ def delete_rag_slang(slang: str) -> str | None:
     if not (isinstance(entry, dict) and entry.get("type") == "rag"):
         return None
     data.pop(slang, None)
-    try:
-        with open(SLANG_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except OSError as e:
-        return "写入失败: %s" % e
-    return None
+    return _atomic_write_slang(data)
 
 
 def expand_query(query: str) -> str:

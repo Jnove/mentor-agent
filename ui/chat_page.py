@@ -128,6 +128,8 @@ def _render_course_choose(i: int, msg: dict, card: dict) -> None:
     点选后把「点选的这门课」折叠成一条 user 消息 + 该门课的 course 卡片追加进
     历史（选了一个 + 出一张卡，一问一答保持配平）；原消息标记 resolved，
     此后重跑不再重复渲染这些选项。
+    埋点用原问题（st.session_state.messages[i-1].content）而非选的课名，
+    避免「未覆盖问题」列表里全是孤立课名。
     """
     courses = card.get("courses") or []
     if not courses:
@@ -138,15 +140,18 @@ def _render_course_choose(i: int, msg: dict, card: dict) -> None:
     if msg.get("_chosen"):
         chosen = msg.pop("_chosen", None)
         msg["resolved"] = True
-        st.session_state.messages.append({"role": "user", "content": chosen})
+        # 从历史里找回原始问题（紧邻本 assistant 消息的那条 user）做埋点
+        msgs = st.session_state.messages
+        original_q = msgs[i - 1]["content"] if i > 0 and i - 1 < len(msgs) else chosen
+        msgs.append({"role": "user", "content": f"我选的是这门课：{chosen}"})
         result = teachers.course_card(chosen)
-        st.session_state.messages.append({
+        msgs.append({
             "role": "assistant",
             "content": teachers.render_card_html(result),
             "sources_md": "评教社区历史评分/评论，仅供参考",
             "retrieval": None, "card": result,
             "log_id": usage.log_question(
-                st.session_state.user["id"], chosen, 0, None, False, False,
+                st.session_state.user["id"], original_q, 0, None, False, False,
                 kind="teacher"),
         })
         st.rerun()

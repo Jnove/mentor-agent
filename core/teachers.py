@@ -289,11 +289,12 @@ def comment_weight(net_votes, published_ts, now=None, lam=0.35):
     (1 + sign(net)·log2(1+|net|)) 对长尾净赞做对数压缩：净赞中位 2、p95 21、
     长尾到 ±900，不压缩的话个别高赞评论会统治聚合，且单人刷赞可轻易放大。
     exp(-λ·age_years)，λ=0.35 半衰期约 2 年——教学评价随时间过时，但不应瞬间清零。
+    vote 下限 0.01：负赞极端时 1-log2(1+|net|) 会跌到 0 甚至为负，让净赞=-1
+    的新评论 weight=0、在 ORDER BY weight DESC LIMIT 60 里被静默淘汰（被正
+    评论挤出前 60），下限保证所有评论都能进入排序、靠时效衰减决胜负。
     """
-    if net_votes >= 0:
-        vote = 1 + (0 if net_votes == 0 else math.log2(1 + net_votes))
-    else:
-        vote = 1 - math.log2(1 - net_votes)
+    sign = 1 if net_votes >= 0 else -1
+    vote = max(0.01, 1 + sign * math.log2(1 + abs(net_votes)))
     now = int(time.time()) if now is None else now
     age_years = max(0, now - published_ts) / 31557600.0
     return vote * (math.exp(-lam * age_years) if age_years > 0 else 1.0)
@@ -499,6 +500,8 @@ def save_course_slang(slang, courses, db_path=None) -> str | None:
     """往统一黑话表（knowledge_base/slang.json）追加/更新一条 type=course 映射；校验失败返回错误，成功返回 None。
 
     courses: 课程名列表；每个必须在 courses 表存在，否则整个拒绝（不写半条）。
+    拒绝覆盖其他类型（RAG 等已有映射）：同 key 不允许从一种类型直接改成另一种，
+    防止 admin 误操作把 RAG 黑话静默改成课程黑话。
     重复黑话覆盖旧值；空黑话/空课程拒绝。只改 type=course 的条目，不动 RAG 黑话。
     """
     import json as _json
@@ -518,13 +521,12 @@ def save_course_slang(slang, courses, db_path=None) -> str | None:
             data = {}
     except (OSError, ValueError):
         data = {}
+    existing = data.get(slang)
+    if isinstance(existing, dict) and existing.get("type") and existing.get("type") != "course":
+        return "该黑话已映射到「%s」类型，请先删除旧映射再添加" % existing["type"]
     data[slang] = {"type": "course", "value": courses}
-    try:
-        with open(SLANG_FILE, "w", encoding="utf-8") as f:
-            _json.dump(data, f, ensure_ascii=False, indent=2)
-    except OSError as e:
-        return "写入失败: %s" % e
-    return None
+    err = _atomic_write_slang(data)
+    return err
 
 
 def delete_course_slang(slang, db_path=None) -> str | None:
@@ -547,9 +549,41 @@ def delete_course_slang(slang, db_path=None) -> str | None:
     if not (isinstance(entry, dict) and entry.get("type") == "course"):
         return None  # 无此课程黑话，视为已删除
     data.pop(slang, None)
+    return _atomic_write_slang(data)
+
+
+def _atomic_write_slang(data) -> str | None:
+    """原子写 SLANG_FILE：写临时文件后 os.replace 改名，避免崩在 dump 中途留下半截 JSON。
+    写入前检测 SLANG_FILE 是否落在 git 子模块里——如果是，提示管理员需要单独
+    提交子模块，否则下次 update_kb / git submodule update --remote 会覆盖本地的修改。
+    """
+    import json as _json
+    import os as _os
+    import sys as _sys
+    from pathlib import Path as _Path
+    slang_path = _Path(SLANG_FILE)
     try:
-        with open(SLANG_FILE, "w", encoding="utf-8") as f:
+        # 子模块检测：git submodule 目录里跑 git rev-parse --show-superproject-working-tree
+        # 会输出父仓库的 working tree；非子模块则输出空。2 秒超时，失败按非子模块处理。
+        import subprocess as _sp
+        r = _sp.run(
+            ["git", "-C", str(slang_path.parent), "rev-parse", "--show-superproject-working-tree"],
+            capture_output=True, text=True, timeout=2,
+        )
+        if r.stdout.strip():
+            print(
+                f"[slang] 警告：{SLANG_FILE} 位于 git 子模块内。"
+                f"本次修改请单独提交到子模块，否则下次 update_kb / "
+                f"git submodule update --remote 会覆盖本次编辑。",
+                file=_sys.stderr,
+            )
+    except Exception:
+        pass
+    tmp = str(slang_path) + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
             _json.dump(data, f, ensure_ascii=False, indent=2)
+        _os.replace(tmp, slang_path)
     except OSError as e:
         return "写入失败: %s" % e
     return None
@@ -749,7 +783,7 @@ def maybe_card(text, question, llm=None, db_path=None):
     candidates = det["candidates"]
     if len(candidates) == 1:
         card = get_teacher_card(candidates[0]["id"], db_path=db_path)
-        return _finalize(card, det["name"], llm, db_path)
+        return _finalize(card, candidates[0]["name"], llm, db_path)
 
     # 多候选：先用规则（课程/学院）收窄
     course = det.get("course")
@@ -759,14 +793,14 @@ def maybe_card(text, question, llm=None, db_path=None):
         college = m.group(1)
     narrowed = []
     for c in candidates:
-        if course and course and _candidate_teaches(c["id"], course, db_path):
+        if course and _candidate_teaches(c["id"], course, db_path):
             narrowed.append(c)
             continue
         if college and c["college"] and college in c["college"]:
             narrowed.append(c)
     if len(narrowed) == 1:
         card = get_teacher_card(narrowed[0]["id"], db_path=db_path)
-        return _finalize(card, det["name"], llm, db_path)
+        return _finalize(card, narrowed[0]["name"], llm, db_path)
 
     # LLM 兜底（(b)）
     if llm is not None:
@@ -774,7 +808,7 @@ def maybe_card(text, question, llm=None, db_path=None):
         if tid is not None:
             card = get_teacher_card(tid, db_path=db_path)
             if card is not None:
-                return _finalize(card, det["name"], llm, db_path)
+                return _finalize(card, card["teacher"]["name"], llm, db_path)
 
     return {"kind": "ambiguous", "candidates": candidates, "name": det["name"]}
 

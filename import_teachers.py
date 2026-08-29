@@ -55,100 +55,102 @@ def _parse_sample(s: str) -> tuple[int, int]:
 
 
 def import_teachers(conn, src: Path) -> int:
+    # DELETE 和 INSERT 放在同一个事务里——中途崩了（CSV 损坏、磁盘满）会一起回滚，
+    # 不会留下 teachers 表被清空、其它表还在的半空 DB。init_db 已用 CREATE IF NOT EXISTS
+    # 保证表存在；--force 路径在 main() 里 DROP 整个 DB 再重建，不需要这里兜底。
+    n = 0
     with conn:
         conn.executescript("DELETE FROM teachers;")
-    n = 0
-    with (src / "teachers.csv").open(encoding="utf-8", newline="") as f:
-        for row in csv.DictReader(f):
-            conn.execute(
-                "INSERT INTO teachers (id,name,college,hot,rating_count,rating,pinyin,py_init,mixed) "
-                "VALUES (?,?,?,?,?,?,?,?,0)",
-                (int(row["id"]), row["姓名"], row["学院"], int(row["热度"] or 0),
-                 int(row["评分人数"] or 0), float(row["评分"] or 0),
-                 row["拼音"], row["拼音缩写"]),
-            )
-            n += 1
+        with (src / "teachers.csv").open(encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                conn.execute(
+                    "INSERT INTO teachers (id,name,college,hot,rating_count,rating,pinyin,py_init,mixed) "
+                    "VALUES (?,?,?,?,?,?,?,?,0)",
+                    (int(row["id"]), row["姓名"], row["学院"], int(row["热度"] or 0),
+                     int(row["评分人数"] or 0), float(row["评分"] or 0),
+                     row["拼音"], row["拼音缩写"]),
+                )
+                n += 1
     return n
 
 
 def import_comments(conn, src: Path, now: int) -> tuple[int, dict]:
-    """读全部 comment_*.csv，返回 (条数, {老师id: [学院,...]})。"""
-    with conn:
-        conn.executescript("DELETE FROM comments;")
+    """读全部 comment_*.csv，返回 (条数, {老师id: [学院,...]})。DELETE 与 INSERT 同事务。"""
     colleges_of: dict[int, list] = {}
     n = 0
-    for f in sorted(glob.glob(str(src / "comment_*.csv"))):
-        college = Path(f).name[len("comment_"):-len(".csv")]
-        with open(f, encoding="utf-8", newline="") as fh:
-            for row in csv.reader(fh):
-                if len(row) < 8 or row[0] == "评论id":
-                    continue
-                try:
-                    tid = int(row[1])
-                except ValueError:
-                    continue
-                ts = _parse_time(row[3])
-                net = int(row[4]); up = int(row[5]); down = int(row[6])
-                weight = comment_weight(net, ts, now)
-                content = row[7]
-                q = comment_quality(content)
-                junk = 1 if q == JUNK_JUNK else 0
-                needs_review = 1 if q == JUNK_REVIEW else 0
-                colleges_of.setdefault(tid, []).append(college)
-                conn.execute(
-                    "INSERT INTO comments "
-                    "(id,teacher_id,published_at,net_votes,up,down,content,weight,cluster_id,"
-                    "junk,needs_review) "
-                    "VALUES (?,?,?,?,?,?,?,?,NULL,?,?)",
-                    (int(row[0]), tid, ts, net, up, down, content, weight, junk, needs_review),
-                )
-                n += 1
+    with conn:
+        conn.executescript("DELETE FROM comments;")
+        for f in sorted(glob.glob(str(src / "comment_*.csv"))):
+            college = Path(f).name[len("comment_"):-len(".csv")]
+            with open(f, encoding="utf-8", newline="") as fh:
+                for row in csv.reader(fh):
+                    if len(row) < 8 or row[0] == "评论id":
+                        continue
+                    try:
+                        tid = int(row[1])
+                    except ValueError:
+                        continue
+                    ts = _parse_time(row[3])
+                    net = int(row[4]); up = int(row[5]); down = int(row[6])
+                    weight = comment_weight(net, ts, now)
+                    content = row[7]
+                    q = comment_quality(content)
+                    junk = 1 if q == JUNK_JUNK else 0
+                    needs_review = 1 if q == JUNK_REVIEW else 0
+                    colleges_of.setdefault(tid, []).append(college)
+                    conn.execute(
+                        "INSERT INTO comments "
+                        "(id,teacher_id,published_at,net_votes,up,down,content,weight,cluster_id,"
+                        "junk,needs_review) "
+                        "VALUES (?,?,?,?,?,?,?,?,NULL,?,?)",
+                        (int(row[0]), tid, ts, net, up, down, content, weight, junk, needs_review),
+                    )
+                    n += 1
     return n, colleges_of
 
 
-
 def import_courses(conn, src: Path) -> tuple[int, int, int, int, int]:
-    """gpa.json → courses 表。返回 (匹配, 丢弃, 条数, 信号归位, 活跃者归位)。"""
-    with conn:
-        conn.executescript("DELETE FROM courses;")
+    """gpa.json → courses 表。返回 (匹配, 丢弃, 条数, 信号归位, 活跃者归位)。DELETE 与 INSERT 同事务。"""
     gpa = json.loads((src / "gpa.json").read_text(encoding="utf-8"))
     pinyin2id: dict[str, list] = {}
     rating_of: dict[int, int] = {}
-    for r in conn.execute("SELECT id, name, pinyin, py_init, rating_count FROM teachers").fetchall():
-        pinyin2id.setdefault(r[1], []).append(r[0])          # 姓名（gpa key 多为中文名）
-        if r[2]:
-            pinyin2id.setdefault(r[2].lower(), []).append(r[0])
-        if r[3]:
-            pinyin2id.setdefault(r[3].lower(), []).append(r[0])
-        rating_of[r[0]] = int(r[4] or 0)
-    matched = dropped = rows = 0
-    signal_hits = active_fallback = 0
-    for key, courses in gpa.items():
-        ids = pinyin2id.get(key.lower())
-        if not ids and len(key) >= 3:
-            import difflib
-            close = difflib.get_close_matches(key.lower(), list(pinyin2id), n=1, cutoff=0.7)
-            ids = pinyin2id.get(close[0]) if close else None
-        if not ids:
-            dropped += 1
-            continue
-        matched += 1
-        if len(ids) == 1:
-            active = ids[0]
+    with conn:
+        conn.executescript("DELETE FROM courses;")
+        for r in conn.execute("SELECT id, name, pinyin, py_init, rating_count FROM teachers").fetchall():
+            pinyin2id.setdefault(r[1], []).append(r[0])          # 姓名（gpa key 多为中文名）
+            if r[2]:
+                pinyin2id.setdefault(r[2].lower(), []).append(r[0])
+            if r[3]:
+                pinyin2id.setdefault(r[3].lower(), []).append(r[0])
+            rating_of[r[0]] = int(r[4] or 0)
+        matched = dropped = rows = 0
+        signal_hits = active_fallback = 0
+        for key, courses in gpa.items():
+            ids = pinyin2id.get(key.lower())
+            if not ids and len(key) >= 3:
+                import difflib
+                close = difflib.get_close_matches(key.lower(), list(pinyin2id), n=1, cutoff=0.7)
+                ids = pinyin2id.get(close[0]) if close else None
+            if not ids:
+                dropped += 1
+                continue
+            matched += 1
+            if len(ids) == 1:
+                active = ids[0]
+                for c in courses:
+                    rows += _insert_course(conn, active, c)
+                continue
+            # 同名：每门课独立按「评论提课程名」归位；无信号 fallback 活跃者
+            texts = _load_comment_texts(conn, ids)
+            active = max(ids, key=lambda i: rating_of.get(i, 0))
             for c in courses:
-                rows += _insert_course(conn, active, c)
-            continue
-        # 同名：每门课独立按「评论提课程名」归位；无信号 fallback 活跃者
-        texts = _load_comment_texts(conn, ids)
-        active = max(ids, key=lambda i: rating_of.get(i, 0))
-        for c in courses:
-            tid = _course_owner(ids, c[0], texts, rating_of)
-            if tid is None:
-                tid = active
-                active_fallback += 1
-            else:
-                signal_hits += 1
-            rows += _insert_course(conn, tid, c)
+                tid = _course_owner(ids, c[0], texts, rating_of)
+                if tid is None:
+                    tid = active
+                    active_fallback += 1
+                else:
+                    signal_hits += 1
+                rows += _insert_course(conn, tid, c)
     return matched, dropped, rows, signal_hits, active_fallback
 
 
