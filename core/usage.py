@@ -6,9 +6,17 @@
 """
 import sqlite3
 import time
+from contextlib import contextmanager
 
 from core.config import USAGE_DB
-from core.db import connect as _connect
+from core.db import connect as _connect_raw
+
+
+# 旧式 fallback：db_path 缺省走模块默认路径（同 auth.py 的注释）
+@contextmanager
+def _connect(db_path: str | None = None):
+    with _connect_raw(db_path or USAGE_DB) as db:
+        yield db
 
 # feedback 三态：NULL 未反馈 / 0 没帮上 / 1 帮上了
 FEEDBACK_UP = 1

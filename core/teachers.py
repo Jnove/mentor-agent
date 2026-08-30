@@ -20,11 +20,19 @@ import os
 import re
 import sqlite3
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from core.config import SLANG_FILE, TEACHER_DB, TEACHER_LOOKUP, TEACHER_SUMMARY
-from core.db import connect as _connect
+from core.db import connect as _connect_raw
 from core.slang import atomic_write_slang_json, read_slang_json
+
+
+# 旧式 fallback：db_path 缺省走模块默认路径（同 auth.py 的注释）
+@contextmanager
+def _connect(db_path: str | None = None):
+    with _connect_raw(db_path or TEACHER_DB) as db:
+        yield db
 
 # 评价意图正则：问题里出现这些词才可能是「评价某老师」类提问
 _INTENT_RE = re.compile(
@@ -145,7 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_w ON comments(teacher_id, cluster_id, we
 
 
 def init_db(db_path: str | None = None) -> None:
-    with _connect(db_path or TEACHER_DB) as db:
+    with _connect(db_path) as db:
         db.executescript(_SCHEMA)
 
 

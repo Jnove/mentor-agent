@@ -10,8 +10,18 @@ import secrets
 import sqlite3
 import time
 
+from contextlib import contextmanager
+
 from core.config import AUTH_DB, admin_emails
-from core.db import connect as _connect
+from core.db import connect as _connect_raw
+
+
+# 旧式 fallback：db_path 缺省走模块默认路径（测试 monkeypatch `auth.AUTH_DB = path`
+# 即可重定向；core.db.connect 把 None 当内存 DB，会让调用点全部跑空库）。
+@contextmanager
+def _connect(db_path: str | None = None):
+    with _connect_raw(db_path or AUTH_DB) as db:
+        yield db
 
 # 验证码
 CODE_TTL = 600          # 10 分钟有效
@@ -46,7 +56,7 @@ CREATE TABLE IF NOT EXISTS email_codes (
 
 
 def init_db(db_path: str | None = None) -> None:
-    with _connect(db_path or AUTH_DB) as db:
+    with _connect(db_path) as db:
         db.executescript(_SCHEMA)
 
 
